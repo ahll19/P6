@@ -131,3 +131,5 @@ dmypy.json
 Bøger/**
 .directory
 .DS_store
+.idea/**
+.Idea/**
