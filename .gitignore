@@ -133,3 +133,4 @@ Bøger/**
 .DS_store
 .idea/**
 .Idea/**
+.ipynb_checkpoints
