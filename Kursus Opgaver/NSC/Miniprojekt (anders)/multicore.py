@@ -1,16 +1,15 @@
 import os, sys
 sys.path.insert(1, os.getcwd())
 import sub_mandelbrot as sm
-
 import numpy as np
 import matplotlib.pyplot as plt
-import multiprocess as mp
+import multiprocessing as mp
 
 
 def mandelbrot(N, processes, max_iter=100):
     Rs = np.linspace(-2, 1, N).reshape((1, N))
     Is = np.linspace(-1.5, 1.5, N).reshape((N, 1))
-    c = Rs + 1j*np.flip(Is)
+    c = Rs + 1j*Is
     args = np.array_split(c, processes)
     iters = np.zeros((N, N))
     n = N//processes
@@ -24,8 +23,8 @@ def mandelbrot(N, processes, max_iter=100):
 
 
 if __name__ == "__main__":
-    iters = mandelbrot(200, 4, max_iter=20)
+    iterations = mandelbrot(200, 4, max_iter=20)
     colormap = plt.cm.hot
-    plt.imshow(iters, cmap=colormap)
+    plt.imshow(iterations, cmap=colormap)
     plt.ylabel(r"$\Im$")
     plt.xlabel(r"$\Re$")

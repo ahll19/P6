@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def sub_mandelbrot(c, max_iter=100):
+def sub_mandelbrot(c, z, max_iter=100):
     z = np.zeros(c.shape, dtype=np.complex128)
     _iters = np.zeros(z.shape, dtype=int)
     m = np.full(c.shape, True, dtype=bool)
