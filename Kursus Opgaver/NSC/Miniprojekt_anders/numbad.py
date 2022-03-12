@@ -40,4 +40,3 @@ if __name__ == "__main__":
     plt.imshow(iters, cmap=colormap)
     plt.ylabel(r"$\Im$")
     plt.xlabel(r"$\Re$")
-
