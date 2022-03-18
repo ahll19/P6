@@ -4,16 +4,18 @@ from scipy.signal import savgol_filter
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
 
-data = np.loadtxt("sat_2_v2.txt", delimiter=",", skiprows=1).T
+data = np.loadtxt("sat_2_16deg_fov10t.txt", delimiter=",", skiprows=1).T
+data = np.loadtxt("sat_2_100deg_fov0t.txt", delimiter=",", skiprows=1).T
+
 
 
 def R(H, phi, theta):
     "H is altitude, phi and theta defined the placemement of the radar"
-    R_e = 6371000  # Radius of earth
-    f = 0.003353  # Earths flattening factor
+    R_e = 6378000  # Radius of earth
+    f = 1/298.257223563  # Earths flattening factor
     I_hat = np.array([1, 0, 0])  # Unit vector in x direction
     J_hat = np.array([0, 1, 0])  # Unit vector in y direction
-    K_hat = np.array([0, 0, 1])  # Unit vector i z direction
+    K_hat = np.array([0, 0, 1])  # Unit vector in z direction
     R = (R_e/(np.sqrt(1-(2*f-f**2)*np.sin(phi)**2)) + H) * \
         np.cos(phi)*(np.cos(theta)*I_hat + np.sin(theta)*J_hat)
     R += ((R_e*(1-f)**2)/(np.sqrt(1-(2*f-f**2)*np.sin(phi)**2)) + H) * \
@@ -90,21 +92,31 @@ def v(R_dot, rho_dot, rho_hat, rho, rho_dot_hat):
     v = R_dot + rho_dot*rho_hat + rho*rho_dot_hat
     return v
 
+def derivative(x,y):
+    Ts = np.diff(x)
+    
+    Dydt = np.diff(y)/Ts
+    xx = x[:-1]+Ts*1/2
+    dydt = np.interp(x,xx,Dydt)
+    
+    return dydt
 
 placement = np.array([0, 4.4, 0])*np.pi/180
 phi = placement[0]
 theta = placement[1]
+time = data[0]
 H = placement[2]
 a = data[2]
 A = data[4]
 a *= np.pi/180
 A *= np.pi/180
 A = savgol_filter(A, 311, 1)
-A_dot = np.diff(A)
-A_dot = savgol_filter(A_dot, 51, 2)
+#A_dot = np.diff(A)*10
+#A_dot = savgol_filter(A_dot, 51, 1)
+A_dot = derivative(time,A)
 A = A[:-1]
 a = savgol_filter(a, 291, 2)
-a_dot = np.diff(a)
+a_dot = np.diff(a)*10
 a_dot = savgol_filter(a_dot, 251, 1)
 a = a[:-1]
 rho = data[1][:-1]*1000
@@ -114,6 +126,7 @@ rho_dot = data[3][:-1]*1000
 V = np.zeros((len(A), 3))
 r_0 = np.zeros((len(A), 3))
 v_mag = np.zeros(len(A))
+r_mag = np.zeros(len(A))
 #Testforsøg fra bogen
 """
 rho = [2551000]
@@ -125,10 +138,12 @@ a_dot = [9.864*10**(-4)]
 phi = 60*np.pi/180
 theta = 300*np.pi/180
 """
+R_ = R(H, phi, theta)
+
 #Kør al dataen igennem
 for i in range(len(A)):
-    R_ = R(H, phi, theta)
-
+    
+    
     delta_ = delta(phi, a[i], A[i])
 
     alpha_ = alpha(phi, theta, a[i], A[i], delta_)
@@ -149,10 +164,20 @@ for i in range(len(A)):
     v_ = v(R_dot_, rho_dot[i], rho_hat_, rho[i], rho_dot_hat_)
     V[i] = v_
     v_mag[i] = np.linalg.norm(v_)
+    r_mag[i] = np.linalg.norm(r_) - np.linalg.norm(R_)
 
-plt.plot(v_mag)
+
+V[:,0] = savgol_filter(V[:,0], 53, 1)
+V[:,1] = savgol_filter(V[:,1], 351, 1)
+V[:,2] = savgol_filter(V[:,2], 351, 1)
+for i in range(len(A)):
+    v_mag[i] = np.linalg.norm(V[i])
+plt.title("fart")
+plt.plot(v_mag[100:])
 plt.show()
-
+plt.title("afstand")
+plt.plot(r_mag/1000)
+plt.show()
 
 def h(r, v):
     return np.cross(r, v)
@@ -193,40 +218,32 @@ def thet(e, r, rho_dot):
         return 2*np.pi - np.arccos(np.dot(e, r)/(np.linalg.norm(e)*np.linalg.norm(r)))
 
 
-check = []
-angle = np.zeros(len(A))
-for j in range(len(A)):
-    h_ = h(r_0[j], V[j])
-    v_r = np.dot(r_0[j], V[j])/np.linalg.norm(r_0[j])
+parameters = np.zeros((len(A), 6))
+for j in range(len(A)-1):
+    h_ = h(r_0[j+1], V[j])
+    
+    v_r = np.dot(r_0[j+1], V[j])/np.linalg.norm(r_0[j+1])
+    
     i_ = i(h_)
 
     N_ = N(h_)
 
     Omega_ = Omega(N_)
 
-    e_ = e(V[j], r_0[j])
+    e_ = e(V[j], r_0[j+1])
 
     omega_ = omega(N_, e_)
 
-    thet_ = thet(e_, r_0[j], v_r)
-    angle[j] = i_*180/np.pi
-    check.append(N_)
+    thet_ = thet(e_, r_0[j+1], -v_r)
+    parameters[j,0] = np.linalg.norm(h_)/1000**2
+    parameters[j,1] = i_*180/np.pi
+    parameters[j,2] = Omega_*180/np.pi
+    parameters[j,3] = np.linalg.norm(e_)
+    parameters[j,4] = abs(omega_*180/np.pi - 180)
+    parameters[j,5] = abs(thet_*180/np.pi - 180)
 
-plt.plot(angle)
-plt.show()
-"""
-f = 0.00001
-origo = np.zeros((len(A)))
-origin = [0, 0, 0]
-X, Y, Z = origo, origo, origo
-U, V, W = r_0[:,0]*f, r_0[:,1]*f, r_0[:,2]*f
-
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.quiver(X, Y, Z, U, V, W, arrow_length_ratio=0.000001)
-plt.show()
-"""
-def rotate(angle):
-    ax.view_init(azim=angle)
-#rot_animation = animation.FuncAnimation(fig, rotate, frames=np.arange(0,362,2),interval=100)
-#rot_animation.save('otation.gif', dpi=80, writer='imagemagick')
+for i in range(6):
+    plt.plot(parameters[:,i][1:-1])
+    print(np.mean(parameters[:,i][1:-1]))
+    plt.show()
+    
