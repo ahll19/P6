@@ -135,3 +135,5 @@ Bøger/**
 .Idea/**
 .ipynb_checkpoints
 *.zip
+
+*.lock
