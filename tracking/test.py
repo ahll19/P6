@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-data = "truth1.txt"
+data = "entireOrbit1.txt"
 distance, velocity = velocity_algo(data)
 x_state = np.concatenate((distance,velocity), axis = 1)
 
