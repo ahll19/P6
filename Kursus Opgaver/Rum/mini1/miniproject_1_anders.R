@@ -46,3 +46,4 @@ points(larynx)  # tilfælde af hvor man vil få larynx cancer
 points(chorley.extra$incin, col = 'red', pch = 10, cex = 4)
 
 # mangler lige noget mere analyse af dataen
+# kig på z test for at tjekke signifikans af parameter
