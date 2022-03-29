@@ -31,13 +31,13 @@ def import_data(filename):
     return t, R, A, E, dR, SNR
 
 
-def velocity_algo(data_name):
+def velocity_algo(dataname):
     def zeros(n, k):
         a = [np.zeros(n)] * k
         return a
 
     def import_data(filename):
-        """
+        '''
         Parameters
         ----------
         filename
@@ -50,7 +50,7 @@ def velocity_algo(data_name):
         E : Elevation
         dR : Radial velocity
         SNR : Signal to noise ratio
-        """
+        '''
         list_ = np.array(open(filename).read().split(), dtype="float")
 
         t, R, A, E, dR, SNR = zeros(len(list_) // 6, 6)  # list is one long array - we split it in 6
@@ -65,7 +65,7 @@ def velocity_algo(data_name):
         return t, R, A, E, dR, SNR
 
     def R(H, phi, theta):
-        """H is altitude, phi and theta defined the placemement of the radar"""
+        "H is altitude, phi and theta defined the placemement of the radar"
         R_e = 6378000  # Radius of earth
         f = 1 / 298.257223563  # Earths flattening factor
         I_hat = np.array([1, 0, 0])  # Unit vector in x direction
@@ -78,7 +78,7 @@ def velocity_algo(data_name):
         return R
 
     def delta(phi, a, A):
-        """A is azimuth and a is elevation"""
+        "A is azimuth and a is elevation"
         d = np.arcsin(np.cos(phi) * np.cos(A) * np.cos(a) + np.sin(phi) * np.sin(a))
         return d
 
@@ -100,7 +100,7 @@ def velocity_algo(data_name):
         return rho
 
     def r(R, distance, rho_hat):
-        """Distance is the range measured from the radar"""
+        "Distance is the range measured from the radar"
         return R + distance * rho_hat
 
     def R_dot(R):
@@ -146,7 +146,7 @@ def velocity_algo(data_name):
 
         return dydt
 
-    data_ = import_data(data_name)
+    data_ = import_data(dataname)
     data = np.zeros((5, len(data_[0])))
     for i in range(len(data_) - 1):
         data[i] += data_[i]
@@ -161,11 +161,13 @@ def velocity_algo(data_name):
     a *= np.pi / 180
     A *= np.pi / 180
     A_dot = derivative(time, A)
-    A = A[:-1]
+    # A_dot = savgol_filter(A_dot, 101, 1)
+
+    A = A[1:]
     a_dot = derivative(time, a)
-    a = a[:-1]
-    rho = data[1][:-1] * 1000
-    rho_dot = data[4][:-1] * 1000
+    a = a[1:]
+    rho = data[1][1:] * 1000
+    rho_dot = data[4][1:] * 1000
 
     V = np.zeros((len(A), 3))
     r_0 = np.zeros((len(A), 3))
@@ -174,6 +176,7 @@ def velocity_algo(data_name):
     R_ = R(H, phi, theta)
 
     lol = []
+
     # Kør al dataen igennem
     for i in range(len(A)):
         delta_ = delta(phi, a[i], A[i])
@@ -198,7 +201,12 @@ def velocity_algo(data_name):
         V[i] = v_
         v_mag[i] = np.linalg.norm(v_)
         r_mag[i] = np.linalg.norm(r_) - np.linalg.norm(R_)
-    return V, r_0
+
+    # get dt vector
+    _t = data_[0]
+    _dt = np.diff(_t)
+
+    return V, r_0, _dt
 
 
 # Filter Classes----------------------------------------------------------------------
@@ -210,6 +218,8 @@ class Kalman:
 
     M_predictions = []
     M_corrections = []
+
+    phi_counter = 0
 
     mu = 3.986004418e14  # wiki "standard gravitational parameter"
 
@@ -241,8 +251,10 @@ class Kalman:
 
     def __phi(self, x_state):
         F = self.__F(x_state[0], x_state[1], x_state[2])
+        res = np.eye(self.dim) + self.dt[self.phi_counter] * F
+        self.phi_counter += 1
 
-        return np.eye(self.dim) + self.dt * F
+        return res
 
     def __kalman_gain(self):
         return self.M_predictions[-1] @ np.linalg.inv(self.S_w + self.M_predictions[-1])
