@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.special import comb
 
 
 # Callable functions----------------------------------------------------------------------
@@ -146,6 +147,12 @@ def velocity_algo(dataname):
 
         return dydt
 
+    def fit_poly(x, y, M=1):
+        p = np.polyfit(x, y, M)
+        poly = np.polyval(p, x)
+
+        return poly
+
     data_ = import_data(dataname)
     data = np.zeros((5, len(data_[0])))
     for i in range(len(data_) - 1):
@@ -160,12 +167,14 @@ def velocity_algo(dataname):
     A = data[2]
     a *= np.pi / 180
     A *= np.pi / 180
-    A_dot = derivative(time, A)
-    # A_dot = savgol_filter(A_dot, 101, 1)
 
-    A = A[1:]
-    a_dot = derivative(time, a)
-    a = a[1:]
+    A_fitted = fit_poly(time, A)
+    a_fitted = fit_poly(time, a)
+
+    A_dot = derivative(time, A_fitted)
+    A = A_fitted[1:]
+    a_dot = derivative(time, a_fitted)
+    a = a_fitted[1:]
     rho = data[1][1:] * 1000
     rho_dot = data[4][1:] * 1000
 
