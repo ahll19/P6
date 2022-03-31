@@ -1,7 +1,4 @@
 import numpy as np
-import logging
-from scipy import sparse
-from scipy.sparse import linalg as splin
 
 
 # Callable functions----------------------------------------------------------------------
