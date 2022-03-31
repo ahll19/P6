@@ -32,7 +32,7 @@ def import_data(filename):
     return t, R, A, E, dR, SNR
 
 
-def velocity_algo(dataname):
+def velocity_algo(dataname, true_orbit=False, M=1):
     def zeros(n, k):
         a = [np.zeros(n)] * k
         return a
@@ -147,8 +147,8 @@ def velocity_algo(dataname):
 
         return dydt
 
-    def fit_poly(x, y, M=1):
-        p = np.polyfit(x, y, M)
+    def fit_poly(x, y, _M):
+        p = np.polyfit(x, y, _M)
         poly = np.polyval(p, x)
 
         return poly
@@ -168,13 +168,19 @@ def velocity_algo(dataname):
     a *= np.pi / 180
     A *= np.pi / 180
 
-    A_fitted = fit_poly(time, A)
-    a_fitted = fit_poly(time, a)
+    if true_orbit:
+        A_dot = derivative(time, A)
+        a_dot = derivative(time, a)
+        A = A[1:]
+        a = a[1:]
+    else:
+        A_fitted = fit_poly(time, A, M)
+        a_fitted = fit_poly(time, a, M)
+        A_dot = derivative(time, A_fitted)
+        a_dot = derivative(time, a_fitted)
+        A = A_fitted[1:]
+        a = a_fitted[1:]
 
-    A_dot = derivative(time, A_fitted)
-    A = A_fitted[1:]
-    a_dot = derivative(time, a_fitted)
-    a = a_fitted[1:]
     rho = data[1][1:] * 1000
     rho_dot = data[4][1:] * 1000
 
