@@ -33,38 +33,6 @@ def import_data(filename):
 
 
 def velocity_algo(dataname, true_orbit=False, M=1):
-    def zeros(n, k):
-        a = [np.zeros(n)] * k
-        return a
-
-    def import_data(filename):
-        '''
-        Parameters
-        ----------
-        filename
-
-        Returns
-        -------
-        t : Time
-        R : Range
-        A : Azimuth
-        E : Elevation
-        dR : Radial velocity
-        SNR : Signal to noise ratio
-        '''
-        list_ = np.array(open(filename).read().split(), dtype="float")
-
-        t, R, A, E, dR, SNR = zeros(len(list_) // 6, 6)  # list is one long array - we split it in 6
-        enum = np.arange(0, len(list_), 6)
-        t = list_[enum]
-        R = list_[enum + 1]
-        A = list_[enum + 2]
-        E = list_[enum + 3]
-        dR = list_[enum + 4]
-        SNR = list_[enum + 5]
-
-        return t, R, A, E, dR, SNR
-
     def R(H, phi, theta):
         "H is altitude, phi and theta defined the placemement of the radar"
         R_e = 6378000  # Radius of earth
