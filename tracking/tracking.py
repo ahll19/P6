@@ -72,7 +72,6 @@ def plot_data(filename, false=None):
         plt.show()
 
 
-
 def velocity_algo(dataname, true_orbit=False, M=1):
     def R(H, phi, theta):
         "H is altitude, phi and theta defined the placemement of the radar"
