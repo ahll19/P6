@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import comb
 
@@ -30,6 +31,36 @@ def import_data(filename):
     SNR = list_[enum + 5]
 
     return t, R, A, E, dR, SNR
+
+
+def plot_data(filename, false=None):
+    """
+    Plotter dataen fra en fil, ved at bruge import_data()
+    :param filename: sti til den fil der skal plottes
+    :param false: Hvis false = None plotter den ikke falske detektioner. Hvis istedet man vil have
+                  false detections med skal man specificere den stien til den fil som indeholder
+                  falske detektioner
+    :return: None
+    """
+    false_data, t_false = None, None
+    labels = ["Time", "Range", "Azimuth", "Elevation", "Radial Velocity", "SNR"]
+    data = import_data(filename)
+    if false is not None:
+        false_data = import_data(false)
+        t_false = false_data[0]
+
+    t_data = data[0]
+    for i in range(1, 5):
+        plt.scatter(t_data, data[i], label="True detections")
+        if false is not None:
+            plt.scatter(t_false, false_data[i], label="False detections")
+
+        plt.legend()
+        plt.title(labels[i] + " over time")
+        plt.xlabel("Time")
+        plt.ylabel(labels[i])
+        plt.show()
+
 
 
 def velocity_algo(dataname, true_orbit=False, M=1):
@@ -189,7 +220,7 @@ def velocity_algo(dataname, true_orbit=False, M=1):
     _t = data_[0]
     _dt = np.diff(_t)
 
-    return V, r_0, _dt
+    return np.hstack((r_0, V)), _dt
 
 
 # Filter Classes----------------------------------------------------------------------
