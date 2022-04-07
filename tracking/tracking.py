@@ -29,7 +29,17 @@ def import_data(filename):
     E = list_[enum + 3]
     dR = list_[enum + 4]
     SNR = list_[enum + 5]
-
+    
+    q = np.where(t<0)
+    if len(q[0]) > 0:
+        index = len(q[0])
+        R = np.concatenate((R[index:],R[:index]))
+        A = np.concatenate((A[index:],A[:index]))
+        E = np.concatenate((E[index:],E[:index]))
+        dR = np.concatenate((dR[index:],dR[:index]))
+        t = np.arange(0,len(R)/10,0.1)#np.concatenate((t[index:],np.arange(t[-1]+0.1,-t[0]+t[-1]+0.1,0.1)))
+    
+    
     return t, R, A, E, dR, SNR
 
 
