@@ -137,3 +137,5 @@ Bøger/**
 *.zip
 
 *.lock
+
+*.icloud
