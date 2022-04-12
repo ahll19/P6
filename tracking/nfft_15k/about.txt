@@ -1,0 +1,36 @@
+% ========== write setup parameters ========== %
+
+radar.llh = 0.00  4.40  0.00
+
+radar.pointing = 270.00  45.00
+
+radar.beamwidth = 16.00
+
+radar.IFOV = 4.00
+
+radar.Fsweep = 10000000.00
+
+radar.lambda = 0.03
+
+radar.Rmax = 1300.00
+
+radar.vmax = 15000.00
+
+sim.Ts = 0.10
+
+sim.Smin = 10.00
+
+sim.Nfft = 15000.00
+
+target.K = 
+   7070  0.0000000      0  0.00  0.00 
+   7075  0.0001300     -3  81.20  0.00 
+   6800  0.0001000      2  120.00  0.00 
+   6800  0.0001000      0  -195.00  0.00 
+   6793  0.0004000      0  231.60  0.00 
+
+sim.tStart =    10      5      7     20     12
+
+sim.tStop =    20
+
+sim.SNRtarget =    20     20     20     20     20
