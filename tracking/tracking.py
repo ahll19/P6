@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.special import comb
+from scipy.signal import resample
 
 
 # Callable functions----------------------------------------------------------------------
@@ -29,50 +30,106 @@ def import_data(filename):
     E = list_[enum + 3]
     dR = list_[enum + 4]
     SNR = list_[enum + 5]
-    
-    q = np.where(t<0)
+
+    q = np.where(t < 0)
     if len(q[0]) > 0:
         index = len(q[0])
-        R = np.concatenate((R[index:],R[:index]))
-        A = np.concatenate((A[index:],A[:index]))
-        E = np.concatenate((E[index:],E[:index]))
-        dR = np.concatenate((dR[index:],dR[:index]))
-        t = np.arange(0,len(R)/10,0.1)#np.concatenate((t[index:],np.arange(t[-1]+0.1,-t[0]+t[-1]+0.1,0.1)))
-    
-    
+        R = np.concatenate((R[index:], R[:index]))
+        A = np.concatenate((A[index:], A[:index]))
+        E = np.concatenate((E[index:], E[:index]))
+        dR = np.concatenate((dR[index:], dR[:index]))
+        t = np.arange(0, len(R) / 10, 0.1)  # np.concatenate((t[index:],np.arange(t[-1]+0.1,-t[0]+t[-1]+0.1,0.1)))
+
     return t, R, A, E, dR, SNR
 
 
-def plot_data(filename, false=None):
+def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_size=1, savename=None):
     """
-    Plotter dataen fra en fil, ved at bruge import_data()
-    :param filename: sti til den fil der skal plottes
-    :param false: Hvis false = None plotter den ikke falske detektioner. Hvis istedet man vil have
-                  false detections med skal man specificere den stien til den fil som indeholder
-                  falske detektioner
-    :return: None
+    Plots the state vector, and if state2 and time2 are given it plots a
+    comparison between the two of them.
+
+    If you want to compare the predicted state with the true state of the system, specify
+    state1 as the predicted state, and state2 as the true state of the system.
+
+    If window_size=1 the limits on tht y-axis are equal to the min and max values of state1 (state2
+    if spcified), a larger value of window-size shows a larger interval on the y-axis.
+
+    If savename is specified as a string, the plots are saved with that string in thir name. If left
+    as default the plots will not be saved.
+
+    :param state1: primary state vector
+    :param time1: primary time vector
+    :param name1: name of the primary state
+    :param state2: comparison state vector
+    :param time2: comparison time vector
+    :param name1: name of the comparison state
+    :param window_size: scalar value
+    :param savename: should be string
+    :return:
     """
-    false_data, t_false = None, None
-    labels = ["Time", "Range", "Azimuth", "Elevation", "Radial Velocity", "SNR"]
-    data = import_data(filename)
-    if false is not None:
-        false_data = import_data(false)
-        t_false = false_data[0]
 
-    t_data = data[0]
-    for i in range(1, 5):
-        plt.scatter(t_data, data[i], label="True detections")
-        if false is not None:
-            plt.scatter(t_false, false_data[i], label="False detections")
+    titles = [r"$r_x$", r"$r_y$", r"$r_z$"]
+    save_titles = ["_x", "_y", "_z"]
+    if state2 is not None and time2 is not None:
+        # Slice the time of the second state to fit the first
+        n1 = np.where(time2 == time1[0])[0][0]
+        n2 = np.where(time2 == time1[-1])[0][0]
+        time2 = time2[n1:n2]
+        state2 = state2[n1:n2, :]
 
-        plt.legend()
-        plt.title(labels[i] + " over time")
-        plt.xlabel("Time")
-        plt.ylabel(labels[i])
-        plt.show()
+        # make sure the state vectors and time vectors have the same length
+        # (this assumes that there are more time entries than state entries)
+        td1 = len(time1) - state1.shape[0]
+        td2 = len(time2) - state2.shape[0]
+        time1 = time1[td1:]
+        time2 = time2[td2:]
+
+        # specify the ranges on the y-axis
+        ys2 = []
+        for i in range(3):
+            max2, min2 = np.max(state2[:, i]), np.min(state2[:, i])
+            width = (max2 - min2)
+            lims = (min2-(window_size-1)*(width/2), max2+(window_size-1)*(width/2))
+            ys2.append(lims)
+
+        for i in range(3):
+            plt.xlabel("Time")
+            plt.ylabel(titles[i])
+            plt.plot(time1, state1[:, i], c='k', label=name1)
+            plt.plot(time2, state2[:, i], c='b', ls="dotted", alpha=0.7, label=name2)
+            plt.ylim(ys2[i])
+            plt.legend()
+            if savename is not None:
+                plt.savefig(savename+save_titles[i]+"_comparison.pdf")
+
+            plt.show()
+    else:
+        # make sure the state vector and time vector have the same length
+        # (this assumes that there are more time entries than state entries)
+        td1 = len(time1) - state1.shape[0]
+        time1 = time1[td1:]
+
+        # specify the ranges on the y-axis
+        ys1 = []
+        for i in range(3):
+            max1, min1 = np.max(state1[:, i]), np.min(state1[:, i])
+            width = (max1 - min1)
+            lims = (min1-(window_size-1)*(width/2), max1+(window_size-1)*(width/2))
+            ys1.append(lims)
+
+        for i in range(3):
+            plt.xlabel("Time")
+            plt.ylabel(titles[i])
+            plt.plot(time1, state1[:, i], c='k', label=name1)
+            plt.ylim(ys1[i])
+            plt.legend()
+            if savename is not None:
+                plt.savefig(savename+save_titles[i]+"_singular.pdf")
+
+            plt.show()
 
 
-def velocity_algo(dataname, true_orbit=False, M=1):
+def velocity_algo(dataname):
     def R(H, phi, theta):
         "H is altitude, phi and theta defined the placemement of the radar"
         R_e = 6378000  # Radius of earth
@@ -176,18 +233,10 @@ def velocity_algo(dataname, true_orbit=False, M=1):
     a *= np.pi / 180
     A *= np.pi / 180
 
-    if true_orbit:
-        A_dot = derivative(time, A)
-        a_dot = derivative(time, a)
-        A = A[1:]
-        a = a[1:]
-    else:
-        A_fitted = fit_poly(time, A, M)
-        a_fitted = fit_poly(time, a, M)
-        A_dot = derivative(time, A_fitted)
-        a_dot = derivative(time, a_fitted)
-        A = A_fitted[1:]
-        a = a_fitted[1:]
+    A_dot = derivative(time, A)
+    a_dot = derivative(time, a)
+    A = A[1:]
+    a = a[1:]
 
     rho = data[1][1:] * 1000
     rho_dot = data[4][1:] * 1000
