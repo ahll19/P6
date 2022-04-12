@@ -129,7 +129,7 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
             plt.show()
 
 
-def velocity_algo(dataname, true_orbit=False, M=1):
+def velocity_algo(dataname):
     def R(H, phi, theta):
         "H is altitude, phi and theta defined the placemement of the radar"
         R_e = 6378000  # Radius of earth
@@ -233,18 +233,10 @@ def velocity_algo(dataname, true_orbit=False, M=1):
     a *= np.pi / 180
     A *= np.pi / 180
 
-    if true_orbit:
-        A_dot = derivative(time, A)
-        a_dot = derivative(time, a)
-        A = A[1:]
-        a = a[1:]
-    else:
-        A_fitted = fit_poly(time, A, M)
-        a_fitted = fit_poly(time, a, M)
-        A_dot = derivative(time, A_fitted)
-        a_dot = derivative(time, a_fitted)
-        A = A_fitted[1:]
-        a = a_fitted[1:]
+    A_dot = derivative(time, A)
+    a_dot = derivative(time, a)
+    A = A[1:]
+    a = a[1:]
 
     rho = data[1][1:] * 1000
     rho_dot = data[4][1:] * 1000
