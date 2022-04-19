@@ -38,7 +38,7 @@ def import_data(filename):
         A = np.concatenate((A[index:], A[:index]))
         E = np.concatenate((E[index:], E[:index]))
         dR = np.concatenate((dR[index:], dR[:index]))
-        t = np.arange(0, len(R) / 10, 0.1)  # np.concatenate((t[index:],np.arange(t[-1]+0.1,-t[0]+t[-1]+0.1,0.1)))
+        t = np.round(np.arange(0, len(R) / 10, 0.1), 2)
 
     return t, R, A, E, dR, SNR
 
@@ -95,9 +95,9 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
         for i in range(3):
             plt.xlabel("Time")
             plt.ylabel(titles[i])
-            plt.plot(time1, state1[:, i], c='k', label=name1)
-            plt.plot(time2, state2[:, i], c='b', ls="dotted", alpha=0.7, label=name2)
-            plt.ylim(ys2[i])
+            plt.plot(time1, state1[:, i], c='b', label=name1)
+            plt.plot(time2, state2[:, i], c='r', ls="dotted", alpha=0.7, label=name2)
+            # plt.ylim(ys2[i])
             plt.legend()
             if savename is not None:
                 plt.savefig(savename+save_titles[i]+"_comparison.pdf")
@@ -120,8 +120,8 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
         for i in range(3):
             plt.xlabel("Time")
             plt.ylabel(titles[i])
-            plt.plot(time1, state1[:, i], c='k', label=name1)
-            plt.ylim(ys1[i])
+            plt.plot(time1, state1[:, i], c='b', label=name1)
+            # plt.ylim(ys1[i])
             plt.legend()
             if savename is not None:
                 plt.savefig(savename+save_titles[i]+"_singular.pdf")
@@ -283,19 +283,19 @@ def velocity_algo(dataname):
 
 # Filter Classes----------------------------------------------------------------------
 class Kalman:
-    z = []
-
-    x_predictions = []
-    x_corrections = []
-
-    M_predictions = []
-    M_corrections = []
-
-    phi_counter = 0
-
     mu = 3.986004418e14  # wiki "standard gravitational parameter"
 
     def __init__(self, S_u, S_w, x_guess, M_guess, dt):
+        self.z = []
+
+        self.x_predictions = []
+        self.x_corrections = []
+
+        self.M_predictions = []
+        self.M_corrections = []
+
+        self.phi_counter = 0
+
         self.S_u = S_u
         self.S_w = S_w
         self.dt = dt
