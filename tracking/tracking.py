@@ -356,7 +356,29 @@ def velocity_algo(dataname):
 
     return np.hstack((r_0, V)), _dt
 
+def conversion(azimuth, elevation, distance):
+    """
+    Function takes azimuth,elevation and range and converts in to cartesian
+    coordiantes
 
+    Parameters
+    ----------
+    azimuth : float
+        DESCRIPTION.
+    elevation : float
+        DESCRIPTION.
+    distance : float
+        DESCRIPTION.
+
+    Returns
+    -------
+    Cartesian coordiantes
+
+    """
+    x = distance*np.cos(elevation)*np.sin(azimuth)
+    y = distance*np.cos(elevation)*np.cos(azimuth)
+    z = distance*np.sin(elevation)
+    return x,y,z
 # Filter Classes----------------------------------------------------------------------
 class Kalman:
     z = []
