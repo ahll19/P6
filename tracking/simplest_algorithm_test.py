@@ -1,5 +1,5 @@
 # Testen er udført med koden som den var ved commit:
-#   724ebfaf0f039a6a0e08aac2c3fca2683ba50662
+#
 import numpy as np
 import os, sys
 import importlib
@@ -55,33 +55,28 @@ for i in range(len(kalman_filters_2)):
     kalman_filters_2[i].run_sim(test2_states[i])
 
 #%%
-# Plot dataen, og gem den i en mappe så vi ikke skal køre filtret hver gang
-test1_save_names = [
-    "snr10_result/entireOrbit1.txt",
-    "snr10_result/entireOrbit2.txt"
-]
-test2_save_names = [
-    ["snr10_result/truth1.txt", "snr10/truth2.txt"],
-    ["snr20_result/truth1.txt", "snr20/truth2.txt"],
-    ["snr50_result/truth1.txt", "snr50/truth2.txt"]
-]
+# Plot dataen
+fig_save_names = ["snr10", "snr20", "snr50"]
+time_shifts = [10, 5]
 
-# plot og gem track 1
+# plot track 1
 for i in range(3):
     names1, vals1 = kalman_filters_1[0].get_data()
     names2, vals2 = kalman_filters_2[2*i].get_data()
 
-    time1 = np.round(np.cumsum(test1_dt[0]), 1)
-    time2 = np.round(np.cumsum(test2_dt[i*2]), 1)
+    time1 = tr.import_data(test1_names[0])[0]
+    time2 = tr.import_data(test2_names[i][0])[0]
 
-    tr.plot_data(vals2[0][10:, :], time2, "Kalman", vals1[0][50:, :], time1, "True orbit", 1.5)
+    tr.plot_data(vals2[0], time2, "Kalman",  vals1[0], time1,
+                 "True orbit", 1.5, savename="test1/track1"+fig_save_names[i])
 
-# plot og gem track 2
+# plot track 2
 for i in range(3):
     names1, vals1 = kalman_filters_1[1].get_data()
     names2, vals2 = kalman_filters_2[2*i+1].get_data()
 
-    time1 = np.round(np.cumsum(test1_dt[1]), 1)
-    time2 = np.round(np.cumsum(test2_dt[i*2+1]), 1)
+    time1 = tr.import_data(test1_names[1])[0]
+    time2 = tr.import_data(test2_names[i][1])[0]
 
-    tr.plot_data(vals2[0][10:, :], time2, "Kalman", vals1[0][50:, :], time1, "True orbit", 1.5)
+    tr.plot_data(vals2[0], time2, "Kalman",  vals1[0], time1,
+                 "True orbit", 1.5, savename="test1/track2"+fig_save_names[i])

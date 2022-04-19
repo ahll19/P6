@@ -87,7 +87,9 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
         # specify the ranges on the y-axis
         ys2 = []
         for i in range(3):
-            max2, min2 = np.max(state2[:, i]), np.min(state2[:, i])
+            _max1, _min1 = np.max(state1[:, i]), np.min(state1[:, i])
+            _max2, _min2 = np.max(state2[:, i]), np.min(state2[:, i])
+            max2, min2 = np.max([_max1, _max2]), np.min([_min1, _min2])
             width = (max2 - min2)
             lims = (min2-(window_size-1)*(width/2), max2+(window_size-1)*(width/2))
             ys2.append(lims)
@@ -97,7 +99,7 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
             plt.ylabel(titles[i])
             plt.plot(time1, state1[:, i], c='b', label=name1)
             plt.plot(time2, state2[:, i], c='r', ls="dotted", alpha=0.7, label=name2)
-            # plt.ylim(ys2[i])
+            plt.ylim(ys2[i])
             plt.legend()
             if savename is not None:
                 plt.savefig(savename+save_titles[i]+"_comparison.pdf")
@@ -121,7 +123,7 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
             plt.xlabel("Time")
             plt.ylabel(titles[i])
             plt.plot(time1, state1[:, i], c='b', label=name1)
-            # plt.ylim(ys1[i])
+            plt.ylim(ys1[i])
             plt.legend()
             if savename is not None:
                 plt.savefig(savename+save_titles[i]+"_singular.pdf")
@@ -356,6 +358,7 @@ def velocity_algo(dataname):
 
     return np.hstack((r_0, V)), _dt
 
+
 def conversion(azimuth, elevation, distance):
     """
     Function takes azimuth,elevation and range and converts in to cartesian
@@ -379,6 +382,8 @@ def conversion(azimuth, elevation, distance):
     y = distance*np.cos(elevation)*np.cos(azimuth)
     z = distance*np.sin(elevation)
     return x,y,z
+
+
 # Filter Classes----------------------------------------------------------------------
 class Kalman:
     mu = 3.986004418e14  # wiki "standard gravitational parameter"
