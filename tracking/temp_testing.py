@@ -2,6 +2,7 @@
 #
 import numpy as np
 import os, sys
+import matplotlib.pyplot as plt
 import importlib
 sys.path.insert(1, os.getcwd())
 import tracking as tr
@@ -57,7 +58,6 @@ for i in range(len(kalman_filters_2)):
 #%%
 # Plot dataen
 fig_save_names = ["snr10", "snr20", "snr50"]
-time_shifts = [10, 5]
 
 # plot track 1
 for i in range(3):
@@ -80,3 +80,35 @@ for i in range(3):
 
     tr.plot_data(vals2[0], time2, "Kalman",  vals1[0], time1,
                  "True orbit", 1.5, savename="test1/track2"+fig_save_names[i])
+
+#%%
+# kig på MSE for vores tracks
+for i in range(3):
+    names1, vals1 = kalman_filters_1[0].get_data()
+    names2, vals2 = kalman_filters_2[2*i].get_data()
+
+    time1 = tr.import_data(test1_names[0])[0]
+    time2 = tr.import_data(test2_names[i][0])[0]
+    time2 = time2[1:]
+
+    mse, square_diff = tr.track_MSE(vals2[1], vals1[1], time2, time1)
+    plt.plot(square_diff[10:])
+    plt.title("Satellite 1: " + fig_save_names[i])
+    plt.show()
+    print(mse)
+
+
+for i in range(3):
+    names1, vals1 = kalman_filters_1[1].get_data()
+    names2, vals2 = kalman_filters_2[2*i+1].get_data()
+
+    time1 = tr.import_data(test1_names[1])[0]
+    time2 = tr.import_data(test2_names[i][1])[0]
+    time2 = time2[1:]
+
+    mse, square_diff = tr.track_MSE(vals2[1], vals1[1], time2, time1)
+    plt.plot(square_diff[10:])
+    plt.title("Satellite 2: " + fig_save_names[i])
+    plt.show()
+    print(mse)
+

@@ -94,8 +94,8 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
             ys2.append(lims)
 
         for i in range(3):
-            plt.xlabel("Time")
-            plt.ylabel(titles[i])
+            plt.xlabel("Time [s]")
+            plt.ylabel(titles[i] + " [m]")
             plt.plot(time1, state1[:, i], c='b', label=name1)
             plt.plot(time2, state2[:, i], c='r', ls="dotted", alpha=0.7, label=name2)
             plt.ylim(ys2[i])
@@ -120,8 +120,8 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
             ys1.append(lims)
 
         for i in range(3):
-            plt.xlabel("Time")
-            plt.ylabel(titles[i])
+            plt.xlabel("Time [s]")
+            plt.ylabel(titles[i] + " [m]")
             plt.plot(time1, state1[:, i], c='b', label=name1)
             plt.ylim(ys1[i])
             plt.legend()
@@ -275,7 +275,7 @@ def velocity_algo(dataname):
     _t = data_[0]
     _dt = np.diff(_t)
 
-    return np.hstack((r_0, V)), _dt, _t
+    return np.hstack((r_0, V)), np.round(_dt, 1), np.round(_t, 1)
 
 
 def conversion(azimuth, elevation, distance):
@@ -304,16 +304,27 @@ def conversion(azimuth, elevation, distance):
 
 
 def track_MSE(track_predicted, track_true, t_predicted, t_true):
+    """
+    Gives the MSE of a given track, and also gives the distance between the tracks
+    at a given time
+    :param track_predicted: The predicted track (entire state)
+    :param track_true: The true track (entire state)
+    :param t_predicted: Time indeces for the predicted track
+    :param t_true: Time indeces for the true track
+    :return: MSE (scalar), distance over time (vector)
+    """
     # Get indeces where the time vectors are equal
-    indeces = [np.where(t_true == t)[0][0] for t in t_predicted].pop(0)
+    indeces = [np.where(t_true == t)[0][0] for t in t_predicted]
+    # indeces.pop(0)
 
     # Find the difference between the tracks at given time indeces
     diff = track_predicted - track_true[indeces]
     diff = diff[:, :3]
-    square_diff = np.sum(diff, axis=1)**2
-    mse = np.sum(square_diff)/square_diff.shape[0]
+    abs_diff = np.sum(diff**2, axis=1)**0.5
+    mse = np.sum(abs_diff**2)/abs_diff.shape[0]
 
-    return mse, square_diff
+    # return indeces
+    return mse, abs_diff
 
 
 # Filter Classes----------------------------------------------------------------------
@@ -416,14 +427,3 @@ class Kalman:
                          np.asarray(self.z)
                          ]
         return return_names, return_values
-
-
-if __name__ == "__main__":
-    state_true, _, time_true = velocity_algo("snr10/entireOrbit1.txt")
-    state_fake, _, time_fake = velocity_algo("snr10/truth1.txt")
-
-    b = track_MSE(state_fake, state_true, time_fake, time_true)
-    print(b[0])
-    plt.plot(b[1])
-    plt.show()
-
