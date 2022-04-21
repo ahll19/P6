@@ -1,5 +1,4 @@
-# Testen er udført med koden som den var ved commit:
-#
+# Det her er anders' rode-kode
 import numpy as np
 import os, sys
 import matplotlib.pyplot as plt

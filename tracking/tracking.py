@@ -61,6 +61,7 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
     :param name1: name of the primary state
     :param state2: comparison state vector
     :param time2: comparison time vector
+    :param name2: name of the comparison state
     :param name1: name of the comparison state
     :param window_size: scalar value
     :param savename: should be string
@@ -272,7 +273,7 @@ def velocity_algo(dataname):
         r_mag[i] = np.linalg.norm(r_) - np.linalg.norm(R_)
 
     # get dt vector
-    _t = data_[0]
+    _t = data_[0][1:]
     _dt = np.diff(_t)
 
     return np.hstack((r_0, V)), np.round(_dt, 1), np.round(_t, 1)
@@ -471,6 +472,8 @@ def track_MSE(track_predicted, track_true, t_predicted, t_true):
     """
     # Get indeces where the time vectors are equal
     indeces = [np.where(t_true == t)[0][0] for t in t_predicted]
+    # brug pop hvis den ene liste er for lang
+    # det er inkonsistent hvornår det er nødvændigt
     # indeces.pop(0)
 
     # Find the difference between the tracks at given time indeces
