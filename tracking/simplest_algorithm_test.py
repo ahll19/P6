@@ -26,16 +26,16 @@ test2_results = [[tr.velocity_algo(name) for name in snr] for snr in test2_names
 #%%
 # Initialize Kalman like a dumbass
 
-test1_states, test1_dt = [], []
+test1_states, test1_dt, _ = [], [], 0
 for i in range(len(test1_names)):
-    _state, _dt = test1_results[i]
+    _state, _dt, _ = test1_results[i]
     test1_states.append(_state)
     test1_dt.append(_dt)
 
-test2_states, test2_dt, test2_names_flattenned = [], [], []
+test2_states, test2_dt, test2_names_flattenned, _ = [], [], [], 0
 for i in range(len(test2_names)):
     for j in range(len(test2_names[0])):
-        _state, _dt = test2_results[i][j]
+        _state, _dt, _ = test2_results[i][j]
         test2_states.append(_state)
         test2_dt.append(_dt)
         test2_names_flattenned.append(test2_names[i][j])

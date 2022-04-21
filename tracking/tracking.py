@@ -1,9 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.special import comb
 from scipy.signal import resample
 
-import matplotlib.pyplot as plt
+
 # Callable functions----------------------------------------------------------------------
 def import_data(filename):
     """
@@ -91,7 +90,7 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
             _max2, _min2 = np.max(state2[:, i]), np.min(state2[:, i])
             max2, min2 = np.max([_max1, _max2]), np.min([_min1, _min2])
             width = (max2 - min2)
-            lims = (min2-(window_size-1)*(width/2), max2+(window_size-1)*(width/2))
+            lims = (min2 - (window_size - 1) * (width / 2), max2 + (window_size - 1) * (width / 2))
             ys2.append(lims)
 
         for i in range(3):
@@ -101,8 +100,9 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
             plt.plot(time2, state2[:, i], c='r', ls="dotted", alpha=0.7, label=name2)
             plt.ylim(ys2[i])
             plt.legend()
+            plt.tight_layout()
             if savename is not None:
-                plt.savefig(savename+save_titles[i]+"_comparison.pdf")
+                plt.savefig(savename + save_titles[i] + "_comparison.pdf")
 
             plt.show()
     else:
@@ -116,7 +116,7 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
         for i in range(3):
             max1, min1 = np.max(state1[:, i]), np.min(state1[:, i])
             width = (max1 - min1)
-            lims = (min1-(window_size-1)*(width/2), max1+(window_size-1)*(width/2))
+            lims = (min1 - (window_size - 1) * (width / 2), max1 + (window_size - 1) * (width / 2))
             ys1.append(lims)
 
         for i in range(3):
@@ -125,8 +125,9 @@ def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_
             plt.plot(time1, state1[:, i], c='b', label=name1)
             plt.ylim(ys1[i])
             plt.legend()
+            plt.tight_layout()
             if savename is not None:
-                plt.savefig(savename+save_titles[i]+"_singular.pdf")
+                plt.savefig(savename + save_titles[i] + "_singular.pdf")
 
             plt.show()
 
@@ -214,30 +215,10 @@ def velocity_algo(dataname):
 
         return dydt
 
-    def fit_poly(x, y, M=order):
-        p = np.polyfit(x, y, M)
-        poly = np.polyval(p, x)
-
-        return poly, p
-    
-
-    def poly_dev(pol, t, deg):
-        if len(pol) == 2:
-            return pol[1]*np.ones(len(t))
-        pol = pol[::-1]
-        dev = pol[1]
-        for i in range(2,deg+1):
-            dev += i*pol[i]*(t**(i-1))
-        return dev
-    
-    if isinstance(dataname, str):
-        data_ = import_data(dataname)
-    else:
-        data_ = dataname.T
+    data_ = import_data(dataname)
     data = np.zeros((5, len(data_[0])))
     for i in range(len(data_) - 1):
         data[i] += data_[i]
-
 
     placement = np.array([0, 4.4, 0]) * np.pi / 180
     phi = [0]
@@ -256,81 +237,19 @@ def velocity_algo(dataname):
 
     rho = data[1][1:] * 1000
     rho_dot = data[4][1:] * 1000
-    split = 1
-    if TrueOrbit == False:
-        split = len(A)//window_len
-        A_split = np.array_split(A,split)
-        a_split = np.array_split(a,split)
-        rho_split = np.array_split(rho,split)
-        rho_dot_split = np.array_split(rho_dot,split)
-        time_split = np.array_split(time, split)
-        l_start = 0
-        l_end = 0
-        V_final = np.zeros((len(A), 3))
-        
-    for j in range(split):
-        if TrueOrbit == False:
-            A = A_split[j]
-            a = a_split[j]
-            rho = rho_split[j]
-            rho_dot = rho_dot_split[j]
-            time = time_split[j]
-            A_fitted, A_coef = fit_poly(time, A)
-            A_dot = poly_dev(A_coef, time, 2)
-            a_fitted, a_coef = fit_poly(time, a)
-            a_dot = poly_dev(a_coef, time, 2)
-            A = A_fitted[1:]
-            a = a_fitted[1:]
-            l_end += len(a)
-        if TrueOrbit == True:
-            A_dot = derivative(time, A)
-            a_dot = derivative(time, a)
 
-       
-        V = np.zeros((len(A), 3))
-        r_0 = np.zeros((len(A), 3))
-        v_mag = np.zeros(len(A))
-        r_mag = np.zeros(len(A))
-        R_ = R(H, phi, theta)
-        A = A[:-1]
-        a = a[:-1]
-        
-        
-        # Kør al dataen igennem
-        for i in range(len(A)):
-            delta_ = delta(phi, a[i], A[i])
+    V = np.zeros((len(A), 3))
+    r_0 = np.zeros((len(A), 3))
+    v_mag = np.zeros(len(A))
+    r_mag = np.zeros(len(A))
+    R_ = R(H, phi, theta)
 
-            alpha_ = alpha(phi, theta, a[i], A[i], delta_)
-    
-            rho_hat_ = rho_hat(delta_, alpha_)
-    
-            r_ = r(R_, rho[i], rho_hat_)
-            r_0[i] = r_
-            R_dot_ = R_dot(R_)
-    
-            delta_dot_ = delta_dot(A_dot[i], a_dot[i], delta_, A[i], a[i], phi)
-    
-            alpha_dot_ = alpha_dot(A_dot[i], a_dot[i], A[i],
-                                   a[i], delta_dot_, phi, delta_)
-    
-            rho_dot_hat_ = rho_dot_hat(alpha_dot_, alpha_, delta_, delta_dot_)
-    
-            v_ = v(R_dot_, rho_dot[i], rho_hat_, rho[i], rho_dot_hat_)
-            V[i] = v_
-            v_mag[i] = np.linalg.norm(v_)
-            r_mag[i] = np.linalg.norm(r_) - np.linalg.norm(R_)
-       # azi_dot[l_start:l_end] += A_dot
-        if TrueOrbit == False:
-            V_final[l_start:l_end, :] += V
-            l_start += len(V)
-        # get dt vector
-        _t = data_[0]
-        _dt = np.diff(_t)
-    if TrueOrbit == False:
-        return V_final, 1, _dt
-    else:
-        return V, r_0, _dt
+    lol = []
 
+    # Kør al dataen igennem
+    for i in range(len(A)):
+        delta_ = delta(phi, a[i], A[i])
+        lol.append(delta_)
 
         alpha_ = alpha(phi, theta, a[i], A[i], delta_)
 
@@ -356,7 +275,7 @@ def velocity_algo(dataname):
     _t = data_[0]
     _dt = np.diff(_t)
 
-    return np.hstack((r_0, V)), _dt
+    return np.hstack((r_0, V)), _dt, _t
 
 
 def conversion(azimuth, elevation, distance):
@@ -378,10 +297,23 @@ def conversion(azimuth, elevation, distance):
     Cartesian coordiantes
 
     """
-    x = distance*np.cos(elevation)*np.sin(azimuth)
-    y = distance*np.cos(elevation)*np.cos(azimuth)
-    z = distance*np.sin(elevation)
-    return x,y,z
+    x = distance * np.cos(elevation) * np.sin(azimuth)
+    y = distance * np.cos(elevation) * np.cos(azimuth)
+    z = distance * np.sin(elevation)
+    return x, y, z
+
+
+def track_MSE(track_predicted, track_true, t_predicted, t_true):
+    # Get indeces where the time vectors are equal
+    indeces = [np.where(t_true == t)[0][0] for t in t_predicted].pop(0)
+
+    # Find the difference between the tracks at given time indeces
+    diff = track_predicted - track_true[indeces]
+    diff = diff[:, :3]
+    square_diff = np.sum(diff, axis=1)**2
+    mse = np.sum(square_diff)/square_diff.shape[0]
+
+    return mse, square_diff
 
 
 # Filter Classes----------------------------------------------------------------------
@@ -484,3 +416,14 @@ class Kalman:
                          np.asarray(self.z)
                          ]
         return return_names, return_values
+
+
+if __name__ == "__main__":
+    state_true, _, time_true = velocity_algo("snr10/entireOrbit1.txt")
+    state_fake, _, time_fake = velocity_algo("snr10/truth1.txt")
+
+    b = track_MSE(state_fake, state_true, time_fake, time_true)
+    print(b[0])
+    plt.plot(b[1])
+    plt.show()
+
