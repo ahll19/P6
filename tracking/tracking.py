@@ -300,6 +300,7 @@ def velocity_algo_pair(state1, state2, time1, time2):
         Position for velocity for first state.
 
     """
+
     def R(H, phi, theta):
         "H is altitude, phi and theta defined the placemement of the radar"
         R_e = 6378000  # Radius of earth
@@ -382,15 +383,15 @@ def velocity_algo_pair(state1, state2, time1, time2):
 
         return dydt
 
-    phi = 0*np.pi/180
-    theta = 4.4*0*np.pi/180
+    phi = 0 * np.pi / 180
+    theta = 4.4 * 0 * np.pi / 180
     time = np.array([time1, time2])
     H = 0
     a = np.array([state1[1], state2[1]])
 
     A = np.array([state1[0], state2[0]])
-    a = a*np.pi / 180
-    A = A*np.pi / 180
+    a = a * np.pi / 180
+    A = A * np.pi / 180
 
     A_dot = derivative(time, A)
     a_dot = derivative(time, a)
@@ -481,11 +482,31 @@ def track_MSE(track_predicted, track_true, t_predicted, t_true):
     # Find the difference between the tracks at given time indeces
     diff = track_predicted - track_true[indeces]
     diff = diff[:, :3]
-    abs_diff = np.sum(diff**2, axis=1)**0.5
-    mse = np.sum(abs_diff**2)/abs_diff.shape[0]
+    abs_diff = np.sum(diff ** 2, axis=1) ** 0.5
+    mse = np.sum(abs_diff ** 2) / abs_diff.shape[0]
 
     # return indeces
     return mse, abs_diff
+
+
+def check_velocity_algo():
+    vel_state, vel_dt, vel_t = velocity_algo("snr10/entireOrbit1.txt")
+    true_position = np.loadtxt("true_states/position1.txt")
+    true_velocity = np.loadtxt("true_states/velocity1.txt")
+
+    true_state = np.hstack((true_position, true_velocity)) * 1000
+    index_diff = np.argmax(true_state[:, 0]) - np.argmax(vel_state[:, 0])
+    names = ["x", "y", "z", r"$\dot{x}$", r"$\dot{y}$", r"$\dot{z}$"]
+    n1 = int(10e3)
+    n2 = int(2*10e3)
+
+    for i in range(6):
+        plt.plot(vel_state[n1:n2, i], label="algo", lw=10, alpha=0.2)
+        plt.plot(true_state[n1+index_diff:n2+index_diff, i], label="true")
+        plt.ylim((np.min(vel_state[n1:n2, i]) - 1, np.max(vel_state[n1:n2, i]) + 1))
+        plt.title(names[i])
+        plt.legend()
+        plt.show()
 
 
 # Filter Classes----------------------------------------------------------------------
@@ -588,3 +609,7 @@ class Kalman:
                          np.asarray(self.z)
                          ]
         return return_names, return_values
+
+
+if __name__ == "__main__":
+    pass
