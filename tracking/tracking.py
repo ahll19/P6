@@ -632,3 +632,29 @@ class Kalman:
                          np.asarray(self.z)
                          ]
         return return_names, return_values
+
+
+#MHT
+
+def time_slice(data):
+    """
+    
+
+    Parameters
+    ----------
+    data : numpy array
+        Takes data with time in the the first column.
+
+    Returns
+    -------
+    time_slices : list
+        Returns a list where each index contains the coordinates of each obsevation at the time index.
+
+    """
+    time_steps = sorted(set(data[:,0]))
+    time_steps = np.array(list(time_steps))
+    time_slices = []
+    for t in time_steps:
+        time_index = np.where(data[:,0] == t)
+        time_slices.append(data[time_index,:])
+    return time_slices
