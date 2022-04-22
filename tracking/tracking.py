@@ -503,7 +503,7 @@ def conversion(data):
         r_ = r(R_, rho[i], rho_hat_)
         r_0[i] = r_
 
-    return r_0, np.array([time]).T
+    return np.hstack((r_0, np.array([time]).T))
 
 
 def track_MSE(track_predicted, track_true, t_predicted, t_true):
