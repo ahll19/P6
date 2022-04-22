@@ -17,17 +17,34 @@ for i,file_ in enumerate(imports):
 data_ = np.concatenate((_data[0],_data[1]))
 data = data_[data_[:,0].argsort()]
 
+data = data[:100]
 #Convert to cartesian coordinates
-time_xyz = tr.conversion(data[:,2], data[:,3], data[:,1])
+time_xyz = tr.conversion(data)
+timesort_xyz = tr.time_slice(time_xyz)
 
 #%% Initial gate
 def init_gate(q1,q2,dt,vmax=12000):
-    if np.linalg.norm(q1-q2)<= vmax*dt:
+    if np.linalg.norm(q1-q2) <= vmax*dt:
         return True
     else:
         return False
-    
 
+
+
+init_hyp=[0]
+for i in range(len(timesort_xyz[0])):
+    for j in range(len(timesort_xyz[1])):
+        if init_gate(timesort_xyz[0][0][i][1:],timesort_xyz[1][0][j][1:],0.1):
+            init_hyp.append(np.max(init_hyp)+1)
+
+
+hyp = [init_hyp]
+        
+for sat in timesort_xyz[2:]:
+    number_obs = len(sat[0])
+    for sat_i in sat:
+        print(number_obs, sat_i)
+    
 
 
 '''
