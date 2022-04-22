@@ -435,29 +435,74 @@ def velocity_algo_pair(state1, state2, time1, time2):
 
     return np.hstack((r_0, V)), np.round(_dt, 1), np.round(_t, 1)
 
-def conversion(azimuth, elevation, distance):
-    """
-    Function takes azimuth,elevation and range and converts in to cartesian
-    coordiantes
+def conversion(data):
+    def R(H, phi, theta):
+        "H is altitude, phi and theta defined the placemement of the radar"
+        R_e = 6378000  # Radius of earth
+        f = 1 / 298.257223563  # Earths flattening factor
+        I_hat = np.array([1, 0, 0])  # Unit vector in x direction
+        J_hat = np.array([0, 1, 0])  # Unit vector in y direction
+        K_hat = np.array([0, 0, 1])  # Unit vector in z direction
+        R = (R_e / (np.sqrt(1 - (2 * f - f ** 2) * np.sin(phi) ** 2)) + H) * \
+            np.cos(phi) * (np.cos(theta) * I_hat + np.sin(theta) * J_hat)
+        R += ((R_e * (1 - f) ** 2) / (np.sqrt(1 - (2 * f - f ** 2) * np.sin(phi) ** 2)) + H) * \
+             np.sin(phi) * K_hat
+        return R
 
-    Parameters
-    ----------
-    azimuth : float
-        DESCRIPTION.
-    elevation : float
-        DESCRIPTION.
-    distance : float
-        DESCRIPTION.
+    def delta(phi, a, A):
+        "A is azimuth and a is elevation"
+        d = np.arcsin(np.cos(phi) * np.cos(A) * np.cos(a) + np.sin(phi) * np.sin(a))
+        return d
 
-    Returns
-    -------
-    Cartesian coordiantes
+    def alpha(phi, theta, a, A, delta):
+        if 0 < A < np.pi:
+            h = 2 * np.pi - np.arccos((np.cos(phi) * np.sin(a) -
+                                       np.sin(phi) * np.cos(A) * np.cos(a)) / np.cos(delta))
+            return theta - h
+        if np.pi <= A <= 2 * np.pi:
+            h = np.arccos((np.cos(phi) * np.sin(a) - np.sin(phi)
+                           * np.cos(A) * np.cos(a)) / np.cos(delta))
+            return theta - h
 
-    """
-    x = distance * np.cos(elevation) * np.sin(azimuth)
-    y = distance * np.cos(elevation) * np.cos(azimuth)
-    z = distance * np.sin(elevation)
-    return x, y, z
+    def rho_hat(delta, alpha):
+        I_hat = np.array([1, 0, 0])  # Unit vector in x direction
+        J_hat = np.array([0, 1, 0])  # Unit vector in y direction
+        K_hat = np.array([0, 0, 1])  # Unit vector in z direction
+        rho = np.cos(delta) * (np.cos(alpha) * I_hat + np.sin(alpha) * J_hat) + np.sin(delta) * K_hat
+        return rho
+
+    def r(R, distance, rho_hat):
+        "Distance is the range measured from the radar"
+        return R + distance * rho_hat
+
+
+    placement = np.array([0, 4.4, 0]) * np.pi / 180
+    phi = [0]
+    theta = placement[1]
+    H = placement[2]
+    time = data[:,0]
+    a = data[:,3]
+    A = data[:,2]
+    a *= np.pi / 180
+    A *= np.pi / 180
+
+    rho = data[:,1] * 1000
+
+    r_0 = np.zeros((len(A), 3))
+    R_ = R(H, phi, theta)
+    # Kør al dataen igennem
+    for i in range(len(A)):
+        
+        delta_ = delta(phi, a[i], A[i])
+
+        alpha_ = alpha(phi, theta, a[i], A[i], delta_)
+
+        rho_hat_ = rho_hat(delta_, alpha_)
+
+        r_ = r(R_, rho[i], rho_hat_)
+        r_0[i] = r_
+
+    return r_0, np.array([time]).T
 
 
 def track_MSE(track_predicted, track_true, t_predicted, t_true):
