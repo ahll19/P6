@@ -1,5 +1,5 @@
 # Testen er udført med koden som den var ved commit:
-#
+#   1b63506736e85081a8b8d4e080ab7a6757cab0b0
 import numpy as np
 import os, sys
 import matplotlib.pyplot as plt
