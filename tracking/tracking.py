@@ -437,6 +437,7 @@ def velocity_algo_pair(state1, state2, time1, time2):
 
     return np.hstack((r_0, V)), np.round(_dt, 1), np.round(_t, 1)
 
+
 def conversion(data):
     def R(H, phi, theta):
         "H is altitude, phi and theta defined the placemement of the radar"
@@ -553,6 +554,30 @@ def check_velocity_algo():
         plt.show()
 
 
+def time_slice(data):
+    """
+
+
+    Parameters
+    ----------
+    data : numpy array
+        Takes data with time in the the first column.
+
+    Returns
+    -------
+    time_slices : list
+        Returns a list where each index contains the coordinates of each obsevation at the time index.
+
+    """
+    time_steps = sorted(set(data[:,0]))
+    time_steps = np.array(list(time_steps))
+    time_slices = []
+    for t in time_steps:
+        time_index = np.where(data[:,0] == t)
+        time_slices.append(data[time_index,:])
+    return time_slices
+
+
 # Filter Classes----------------------------------------------------------------------
 class Kalman:
     mu = 3.986004418e14  # wiki "standard gravitational parameter"
@@ -654,31 +679,6 @@ class Kalman:
                          ]
         return return_names, return_values
 
-
-#MHT
-
-def time_slice(data):
-    """
-    
-
-    Parameters
-    ----------
-    data : numpy array
-        Takes data with time in the the first column.
-
-    Returns
-    -------
-    time_slices : list
-        Returns a list where each index contains the coordinates of each obsevation at the time index.
-
-    """
-    time_steps = sorted(set(data[:,0]))
-    time_steps = np.array(list(time_steps))
-    time_slices = []
-    for t in time_steps:
-        time_index = np.where(data[:,0] == t)
-        time_slices.append(data[time_index,:])
-    return time_slices
 
 if __name__ == "__main__":
     pass
