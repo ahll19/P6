@@ -23,7 +23,7 @@ data_ = np.concatenate((_data[0],_data[1]))
 data_ = np.concatenate((data_,_data[2]))
 data = data_[data_[:,0].argsort()]
 
-data = data[:10]
+data = data[:12]
 #Convert to cartesian coordinates
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz)
@@ -62,7 +62,7 @@ for i in range(len(timesort_xyz[0][0])):
 
     hyp_individual.append(init_hyp)
 
-d_hyp.update({1:np.array(hyp_individual)})
+d_hyp.update({1:hyp_individual})
 #hyp = [init_hyp]
 for sat in timesort_xyz[2:]:
     number_obs = len(sat[0])
