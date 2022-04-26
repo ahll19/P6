@@ -77,7 +77,7 @@ for i in range(5):
     mse_string += "Track number " + str(i + 1) + " MSE: " + str(mse) + "\n"
     mse_save_string = "test1/distanceplot_track" + str(i + 1) + ".pdf"
 
-    plt.plot(dist)
+    plt.plot(entire_t[i], dist)
     plt.xlabel("Time [s]")
     plt.ylabel("Distance [m]")
     plt.savefig(mse_save_string)

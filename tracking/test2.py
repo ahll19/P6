@@ -116,19 +116,19 @@ for i in range(5):
     mse_save_string_50 = "test2/snr50_distanceplot_track" + str(i + 1) + ".pdf"
 
     # lav og gem plots
-    plt.plot(dist_10)
+    plt.plot(t_10[i], dist_10)
     plt.xlabel("Time [s]")
     plt.ylabel("Distance [m]")
     plt.savefig(mse_save_string_10)
     plt.show()
 
-    plt.plot(dist_20)
+    plt.plot(t_20[i], dist_20)
     plt.xlabel("Time [s]")
     plt.ylabel("Distance [m]")
     plt.savefig(mse_save_string_20)
     plt.show()
 
-    plt.plot(dist_50)
+    plt.plot(t_50[i], dist_50)
     plt.xlabel("Time [s]")
     plt.ylabel("Distance [m]")
     plt.savefig(mse_save_string_50)
