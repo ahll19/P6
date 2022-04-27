@@ -10,6 +10,7 @@ importlib.reload(tr)
 vmax = 12000
 
 # %% data import and sort
+# Trying out some stuff
 
 imports = ["snr50/truth1.txt","snr50/truth2.txt","nfft_15k/false.txt"]
 
