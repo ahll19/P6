@@ -517,13 +517,13 @@ def conversion(data):
     phi = [0]
     theta = placement[1]
     H = placement[2]
-    time = data[0]
-    a = data[3]
-    A = data[2]
+    time = data[:,0]
+    a = data[:,3]
+    A = data[:,2]
     a *= np.pi / 180
     A *= np.pi / 180
 
-    rho = data[1] * 1000
+    rho = data[:,1] * 1000
 
     r_0 = np.zeros((len(A), 3))
     R_ = R(H, phi, theta)
@@ -539,7 +539,7 @@ def conversion(data):
         r_ = r(R_, rho[i], rho_hat_)
         r_0[i] = r_
 
-    return np.hstack((r_0, np.array([time]).T))
+    return np.hstack((np.array([time]).T,r_0))
 
 
 def track_MSE(track_predicted, track_true, t_predicted, t_true):
