@@ -41,6 +41,42 @@ def import_data(filename):
 
     return t, R, A, E, dR, SNR
 
+def import_data_v2(filename):
+    """
+    Parameters
+    ----------
+    filename
+
+    Returns
+    -------
+    t : Time
+    R : Range
+    A : Azimuth
+    E : Elevation
+    dR : Radial velocity
+    SNR : Signal to noise ratio
+    """
+
+    list_ = np.array(open(filename).read().split(), dtype="float")
+    enum = np.arange(0, len(list_), 6)
+
+    t = list_[enum]
+    R = list_[enum + 1]
+    A = list_[enum + 2]
+    E = list_[enum + 3]
+    dR = list_[enum + 4]
+    SNR = list_[enum + 5]
+
+    q = np.where(t < 0)
+    if len(q[0]) > 0:
+        index = len(q[0])
+        R = np.concatenate((R[index:], R[:index]))
+        A = np.concatenate((A[index:], A[:index]))
+        E = np.concatenate((E[index:], E[:index]))
+        dR = np.concatenate((dR[index:], dR[:index]))
+        t = np.round(np.arange(0, len(R) / 10, 0.1), 2)
+
+    return t, R, A, E, dR, SNR,index
 
 def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_size=1, savename=None):
     """
@@ -286,9 +322,9 @@ def velocity_algo_pair(state1, state2, time1, time2):
     Parameters
     ----------
     state1 : TYPE
-        azimuth, elevation , range, radial velocity for first state.
+        range, azimuth, elevation, radial velocity for first state.
     state2 : TYPE
-        azimuth, elevation , range, radial velocity for second state.
+        range, azimuth, elevation, radial velocity for second state.
     time1 : TYPE
         time for first state.
     time2 : TYPE
@@ -378,18 +414,16 @@ def velocity_algo_pair(state1, state2, time1, time2):
         Ts = np.diff(x)
 
         Dydt = np.diff(y) / Ts
-        xx = x[:-1] + Ts * 1 / 2
-        dydt = np.interp(x, xx, Dydt)
 
-        return dydt
+        return Dydt
 
     phi = 0 * np.pi / 180
     theta = 4.4 * 0 * np.pi / 180
     time = np.array([time1, time2])
     H = 0
-    a = np.array([state1[1], state2[1]])
+    a = np.array([state1[2], state2[2]])
 
-    A = np.array([state1[0], state2[0]])
+    A = np.array([state1[1], state2[1]])
     a = a * np.pi / 180
     A = A * np.pi / 180
 
@@ -398,8 +432,8 @@ def velocity_algo_pair(state1, state2, time1, time2):
     A = A[1:]
     a = a[1:]
 
-    rho = np.array([state1[1], state2[1]]) * 1000
-    rho_dot = np.array([state1[1], state2[1]]) * 1000 * 1000
+    rho = np.array([state1[0], state2[0]]) * 1000
+    rho_dot = np.array([state1[3], state2[3]]) * 1000
 
     V = np.zeros((len(A), 3))
     r_0 = np.zeros((len(A), 3))
@@ -483,13 +517,13 @@ def conversion(data):
     phi = [0]
     theta = placement[1]
     H = placement[2]
-    time = data[:,0]
-    a = data[:,3]
-    A = data[:,2]
+    time = data[0]
+    a = data[3]
+    A = data[2]
     a *= np.pi / 180
     A *= np.pi / 180
 
-    rho = data[:,1] * 1000
+    rho = data[1] * 1000
 
     r_0 = np.zeros((len(A), 3))
     R_ = R(H, phi, theta)
@@ -679,6 +713,31 @@ class Kalman:
                          ]
         return return_names, return_values
 
+
+#MHT
+
+def time_slice(data):
+    """
+    
+
+    Parameters
+    ----------
+    data : numpy array
+        Takes data with time in the the first column.
+
+    Returns
+    -------
+    time_slices : list
+        Returns a list where each index contains the coordinates of each obsevation at the time index.
+
+    """
+    time_steps = sorted(set(data[:,-1]))
+    time_steps = np.array(list(time_steps))
+    time_slices = []
+    for t in time_steps:
+        time_index = np.where(data[:,-1] == t)
+        time_slices.append(data[time_index,:])
+    return time_slices
 
 if __name__ == "__main__":
     pass

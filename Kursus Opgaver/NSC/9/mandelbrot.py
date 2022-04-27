@@ -132,16 +132,16 @@ if __name__ == '__main__':
             self.w = 3840
             self.h = 2160
             self.fname="mandelbrot.png"
-            self.chunks = 10
+            self.chunks = 100
             self.render(-2.13, 2.13, -1.3, 1.3)
             self.save_image()
 
         def render(self, x1, x2, y1, y2, maxiter=20):
             # Create the input
-            xx = np.arange(x1, x2, (x2-x1)/self.w)
-            yy = np.arange(y2, y1, (y1-y2)/self.h) * 1j
-            q = np.ravel(xx+yy[:, np.newaxis]).astype(np.complex)
-
+            xx = np.linspace(x1, x2, self.w)
+            yy = np.linspace(y2, y1, self.h)*1J
+            q = np.ravel(xx+yy[:, np.newaxis])#.astype(np.complex)
+            print(q)
             # Slice the input up into chunks to be processed in parallel
             chunk_width = self.w
             chunk_height = self.h / self.chunks
@@ -154,7 +154,7 @@ if __name__ == '__main__':
             start_main = time.time()
 
             # Can use opencl / numpy here
-            output = calc_fractal_numpy(chunked_data, maxiter)
+            output = calc_fractal_opencl(chunked_data, maxiter)
 
             end_main = time.time()
 
@@ -173,3 +173,4 @@ if __name__ == '__main__':
 
     # test the class
     test = Mandelbrot()
+    plt.imshow(test.mandel)
