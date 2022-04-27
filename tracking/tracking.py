@@ -517,13 +517,13 @@ def conversion(data):
     phi = [0]
     theta = placement[1]
     H = placement[2]
-    time = data[0]
-    a = data[3]
-    A = data[2]
+    time = data[:,0]
+    a = data[:,3]
+    A = data[:,2]
     a *= np.pi / 180
     A *= np.pi / 180
 
-    rho = data[1] * 1000
+    rho = data[:,1] * 1000
 
     r_0 = np.zeros((len(A), 3))
     R_ = R(H, phi, theta)
