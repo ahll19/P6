@@ -714,8 +714,5 @@ class Kalman:
         return return_names, return_values
 
 
-#MHT
-
-
 if __name__ == "__main__":
     pass
