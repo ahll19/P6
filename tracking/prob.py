@@ -86,17 +86,10 @@ def Pik(H, c=1, P_g=0.2, P_D = 0.2, prior_info=False,
     for i,hyp in enumerate(H.T): 
         N_FT = np.count_nonzero(hyp==0) #Number of false 
         N_NT = np.count_nonzero(hyp>=N_TGT+1) #Number of known targets in hyp
-        N_DT =  len(hyp)-N_FT-N_NT #Number of prioer targets in given hyp
-        
-        if N_NT+N_DT == 0:
-            beta_FT = 1
-        else:
-            beta_FT = N_FT/(N_NT+N_DT)
-        
-        if N_FT+N_DT==0:
-            beta_NT = 1
-        else:
-            beta_NT = N_NT/(N_FT+N_DT)
+        N_DT = len(hyp)-N_FT-N_NT #Number of prioer targets in given hyp
+
+        beta_FT = N_FT/(N_NT+N_DT+N_FT)
+        beta_NT = N_NT/(N_FT+N_DT+N_NT)
         
         prob[i] = (1/c) * (P_D**(N_DT) * (1-P_D)**(N_TGT-N_DT) * \
             beta_FT**(N_FT) * beta_NT**(N_NT))
@@ -117,6 +110,12 @@ def Pik(H, c=1, P_g=0.2, P_D = 0.2, prior_info=False,
 def prune(prob_hyp,th=0.1,N_h=10000):
     cut_index = np.min(np.where(prob_hyp[0]<th))
     
+    pruned_hyp = prob_hyp[:,:cut_index]
+    
+    if len(pruned_hyp[0]) >= N_h:
+        pruned_hyp = pruned_hyp[:,:N_h]
+    
+    return pruned_hyp
     
     
 
