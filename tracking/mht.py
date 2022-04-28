@@ -6,10 +6,11 @@ import numpy as np
 import importlib
 import tracking as tr
 from itertools import product
+import matplotlib.pyplot as plt
 
 
 # %% Function definitions
-def init_gate(q1, q2, dt, vmax=12000):
+def init_gate(q1, q2, dt, vmax=12000.0):
     if np.linalg.norm(q1 - q2) <= vmax * dt:
         return True
     else:
@@ -29,7 +30,12 @@ def eval_hyp(hyp):
     pass
 
 
-def create_hyp_table(S0, S1, initial_hyp=False):
+def create_hyp_table(S0, S1, tracks, initial_hyp=False):
+    # get numbers for new track hypothsis
+    current_tracks = np.sort(list(tracks.keys()))
+    new_track_start = current_tracks[-1]+1
+    track_numbers = np.arange(new_track_start, new_track_start+len(S1))
+
     # create initial hypothesis table
     hyp_table = []
     for i in range(len(S1)):
@@ -37,7 +43,7 @@ def create_hyp_table(S0, S1, initial_hyp=False):
         for j in range(len(S0)):
             if init_gate(S0[i], S1[j], 1, 0.75):
                 mn_hyp.append(j + 1)
-
+        mn_hyp.append(track_numbers[i])
         hyp_table.append(mn_hyp)
 
     # create all possible combinations
