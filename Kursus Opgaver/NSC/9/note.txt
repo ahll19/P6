@@ -1,0 +1,1 @@
+tjek om ocl-icd og pocl er installeret hvis lortet ikke kører

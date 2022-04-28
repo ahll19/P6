@@ -1,12 +1,11 @@
-import sys, os
+import sys
+import os
 
 sys.path.insert(1, os.getcwd())
 
 import numpy as np
-import importlib
 import tracking as tr
 from itertools import product
-import matplotlib.pyplot as plt
 
 
 # %% Function definitions
@@ -17,20 +16,84 @@ def init_gate(q1, q2, dt, vmax=12000.0):
         return False
 
 
-def update_inf(individual_hyp):
-    for i in range(len(np.where(np.array(individual_hyp) == -np.inf)[0])):
-        pass
+def N_pdf(mean, Sig_inv):
+    Sig = np.linalg.inv(Sig_inv)
+    n = len(Sig)
+    return (-0.5 * (mean.T @ Sig_inv @ mean)) / \
+           (np.sqrt((2 * np.pi) ** n * np.linalg.norm(Sig)))
 
 
-def pair_hyp(hyp):
-    pass
+def Pik(H, c=1, P_g=0.2, P_D=0.2, prior_info=False, y_t=None, y_t_hat=None, Sig_inv=None):
+    """
+    Parameters
+    ----------
+    H : Hypothesis matrix. len(columns)=amount of hypothesis, len(rows)= amount
+    of points
+    c : Scaling of probability. The default is 1.
+    P_g : Probability relating to prior points (only used if prior_info=True).
+    The default is 0.2.
+    P_D : Probability for detection. The default is 0.2.
+    prior_info : Boolian - if True then we have prior info, Talse otherwise.
+    The default is False.
+    y_t : Measurements at time t. The default is [].
+    y_t_hat : Predictions at time t. The default is [].
+    Sig_inv : Covariance matrix from Kalman. The default is [].
+
+    Returns
+    -------
+    prob : Array type of probabilities for each hypothesis
+
+    """
+
+    N_TGT = np.max(H) - len(H)  # Number of previously known targets
+
+    prob = np.zeros(len(H[0]))
+    for i, hyp in enumerate(H.T):
+        N_FT = np.count_nonzero(hyp == 0)  # Number of false
+        N_NT = np.count_nonzero(hyp >= N_TGT + 1)  # Number of known targets in hyp
+        N_DT = len(hyp) - N_FT - N_NT  # Number of prioer targets in given hyp
+
+        beta_FT = N_FT / (N_NT + N_DT + N_FT)
+        beta_NT = N_NT / (N_FT + N_DT + N_NT)
+
+        prob[i] = (1 / c) * (P_D ** N_DT * (1 - P_D) ** (N_TGT - N_DT) * beta_FT ** N_FT * beta_NT ** N_NT)
+
+        if prior_info:
+            product = 1
+            for j in range(N_DT):
+                product *= N_pdf(y_t[j] - y_t_hat[j],
+                                 Sig_inv)  # Må være den prediction der hører til givet punkt der menes
+
+            prob[i] *= product * P_g
+
+    prob_hyp = np.vstack((prob, H))
+
+    prob_hyp = prob_hyp.T[prob_hyp.T[:, 0].argsort()[::-1]].T
+
+    return prob_hyp
 
 
-def eval_hyp(hyp):
-    pass
+def prune(prob_hyp, th=0.1, N_h=10000):
+    cut_index = np.min(np.where(prob_hyp[0] < th))
+
+    pruned_hyp = prob_hyp[:, :cut_index]
+
+    if len(pruned_hyp[0]) >= N_h:
+        pruned_hyp = pruned_hyp[:, :N_h]
+
+    return pruned_hyp
 
 
 def create_hyp_table(S0, S1, tracks, initial_hyp=False):
+    """
+    NOTE: rewrite such that S0 is not needed (can be gained from tracks)
+    Given a set of measurements, uses gating to list all possible new hypothesis
+    :param S0: Last points from each track (e.g. [track1[-1], track2[-1], ...])
+    :param S1: New measurements
+    :param tracks:
+    :param initial_hyp:
+    :return:
+    """
     # get numbers for new track hypothsis
     current_tracks = np.sort(list(tracks.keys()))
     new_track_start = current_tracks[-1] + 1
@@ -65,6 +128,37 @@ def create_hyp_table(S0, S1, tracks, initial_hyp=False):
     return hyp_possible
 
 
+def assign_hyp_to_tracks(tracks, hyp_table):
+    """
+    Function which takes the current tracks, and a hypothesis table,
+    and returns possible track assignments for each new data point
+    :param tracks: dictionary of all current tracks
+    :param hyp_table: hypothesis table (returned by create_hyp_table
+    :return: Returns a list of sets. Each index of the list corresponds to one of the new
+             data points. The set at each index indicates which track could be assigned to the new
+             data point.
+    """
+    # get all track keys, without 0
+    all_tracks = tracks.copy()
+    del all_tracks[0]
+    all_track_keys = list(all_tracks.keys())
+    num_points = hyp_table.shape[0]
+
+    # create a list where the first index saves possible tracks for the first point etc.
+    point_possible_tracks = [set() for i in range(num_points)]
+    for hyp in hyp_table.T:
+        for k in all_track_keys:
+            # check if a hypothesis implies a point belongs to a current track
+            _key_check = np.where(hyp == k)[0]
+            is_not_empty = _key_check.size != 0
+
+            if is_not_empty:
+                # add points to the tracks the hypothesis specifies
+                point_possible_tracks[_key_check[0]].add(hyp[_key_check[0]])
+
+    return point_possible_tracks
+
+
 # %% Data import and transformation
 imports = ["snr50/truth1.txt", "snr50/truth2.txt", "nfft_15k/false.txt"]
 
@@ -88,13 +182,14 @@ time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz)
 
 # %% creating initial tracks
-initial_track_keys = list(range(1, timesort_xyz[0].shape[1]+1))
-tracks = {0: []}
+initial_track_keys = list(range(1, timesort_xyz[0].shape[1] + 1))
+tracks_test = {0: []}
 for i in range(len(initial_track_keys)):
     _key = initial_track_keys[i]
-    _point = timesort_xyz[0][0, i, 1:]
-    tracks[_key] = _point
+    _point = timesort_xyz[0][0, i]
+    tracks_test[_key] = _point
 
-# %% Initial gating
-hyp1_table = create_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], tracks, initial_hyp=True)
-9
+# %% testing
+hyp1_table = create_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], tracks_test, initial_hyp=True)
+hyp_prob = Pik(hyp1_table)
+assign_hyp_to_tracks(tracks_test, hyp1_table)
