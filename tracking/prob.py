@@ -103,12 +103,20 @@ def Pik(H, c=1, P_g=0.2, P_D = 0.2, prior_info=False,
         
         if prior_info == True:
             product = 1
-            for i in range(N_DT): 
-                product *= N_pdf(y_t-y_t_hat,Sig_inv) # ved ikke om det skal være dobbelt for loop ift alle punkter y_t til tiden t
+            for j in range(N_DT): 
+                product *= N_pdf(y_t[j]-y_t_hat[j],Sig_inv) # Må være den prediction der hører til givet punkt der menes
             
             prob[i] *= product*P_g
     
-    return prob
+    prob_hyp = np.vstack((prob,H))
+    
+    prob_hyp = prob_hyp.T[prob_hyp.T[:,0].argsort()[::-1]].T
+    
+    return prob_hyp
 
-
+def prune(prob_hyp,th=0.1,N_h=10000):
+    cut_index = np.min(np.where(prob_hyp[0]<th))
+    
+    
+    
 
