@@ -1,6 +1,6 @@
 import sys, os
-sys.path.insert(1, os.getcwd())
 
+sys.path.insert(1, os.getcwd())
 
 import numpy as np
 import importlib
@@ -33,15 +33,15 @@ def eval_hyp(hyp):
 def create_hyp_table(S0, S1, tracks, initial_hyp=False):
     # get numbers for new track hypothsis
     current_tracks = np.sort(list(tracks.keys()))
-    new_track_start = current_tracks[-1]+1
-    track_numbers = np.arange(new_track_start, new_track_start+len(S1))
+    new_track_start = current_tracks[-1] + 1
+    track_numbers = np.arange(new_track_start, new_track_start + len(S1))
 
     # create initial hypothesis table
     hyp_table = []
     for i in range(len(S1)):
         mn_hyp = [0]
         for j in range(len(S0)):
-            if init_gate(S0[i], S1[j], 1, 0.75):
+            if init_gate(S0[i], S1[j], 1):
                 mn_hyp.append(j + 1)
         mn_hyp.append(track_numbers[i])
         hyp_table.append(mn_hyp)
@@ -74,18 +74,27 @@ for i, file_ in enumerate(imports):
     _data.append(np.array(tr.import_data(file_)).T)
 
     if i == 0:
-        _data[0][:,0] = np.array(_data[0][:,0])-5
+        _data[0][:, 0] = np.array(_data[0][:, 0]) - 5
     if i == 2:
-        _data[2][:,0] = np.array(_data[2][:,0])+5
+        _data[2][:, 0] = np.array(_data[2][:, 0]) + 5
 
-data_ = np.concatenate((_data[0],_data[1]))
-data_ = np.concatenate((data_,_data[2]))
-data = data_[data_[:,0].argsort()]
+data_ = np.concatenate((_data[0], _data[1]))
+data_ = np.concatenate((data_, _data[2]))
+data = data_[data_[:, 0].argsort()]
 data = data[:12]
 
 # Convert to cartesian coordinates
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz)
 
+# %% creating initial tracks
+initial_track_keys = list(range(1, timesort_xyz[0].shape[1]+1))
+tracks = {0: []}
+for i in range(len(initial_track_keys)):
+    _key = initial_track_keys[i]
+    _point = timesort_xyz[0][0, i, 1:]
+    tracks[_key] = _point
+
 # %% Initial gating
-print("done")
+hyp1_table = create_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], tracks, initial_hyp=True)
+9
