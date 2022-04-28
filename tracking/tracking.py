@@ -529,7 +529,7 @@ def conversion(data):
     R_ = R(H, phi, theta)
     # Kør al dataen igennem
     for i in range(len(A)):
-        
+
         delta_ = delta(phi, a[i], A[i])
 
         alpha_ = alpha(phi, theta, a[i], A[i], delta_)
@@ -540,6 +540,7 @@ def conversion(data):
         r_0[i] = r_
 
     return np.hstack((np.array([time]).T,r_0))
+
 
 
 def track_MSE(track_predicted, track_true, t_predicted, t_true):
@@ -590,18 +591,14 @@ def check_velocity_algo():
 
 def time_slice(data):
     """
-
-
     Parameters
     ----------
     data : numpy array
         Takes data with time in the the first column.
-
     Returns
     -------
     time_slices : list
         Returns a list where each index contains the coordinates of each obsevation at the time index.
-
     """
     time_steps = sorted(set(np.round(data[:,0],1)))
     time_steps = np.array(list(time_steps))
@@ -610,6 +607,7 @@ def time_slice(data):
         time_index = np.where(np.round(data[:,0],1) == round(t,1))
         time_slices.append(data[time_index,:])
     return time_slices
+
 
 
 # Filter Classes----------------------------------------------------------------------
