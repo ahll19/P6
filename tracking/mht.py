@@ -16,6 +16,28 @@ def init_gate(q1, q2, dt, vmax=12000.0):
         return False
 
 
+def mah_gate(prediction, observation, threshold):
+    """
+    Create Mahalanobis gate for a prediction and observation
+    :param prediction: tuple (returned by make_prediction from KalmanMHT) of state and variance prediction
+    :param observation: new observation (can be [t, x, y, z] or [x, y, z] array)
+    :param threshold: threshhold distance thang
+    :return: True if the point is in the gate, False otherwise
+    """
+    _x, m = prediction[0], prediction[1]
+    y = observation
+
+    x = _x[:3]
+    if len(y) == 4:
+        y = y[1:]
+
+    d = (x-y).T@np.linalg.inv(m)@(x-y)
+    if d < threshold:
+        return True
+    else:
+        return False
+
+
 def N_pdf(mean, Sig_inv):
     Sig = np.linalg.inv(Sig_inv)
     n = len(Sig)
@@ -84,7 +106,7 @@ def prune(prob_hyp, th=0.1, N_h=10000):
     return pruned_hyp
 
 
-def create_hyp_table(S0, S1, tracks, initial_hyp=False):
+def create_init_hyp_table(S0, S1, tracks):
     """
     NOTE: rewrite such that S0 is not needed (can be gained from tracks)
     Given a set of measurements, uses gating to list all possible new hypothesis
@@ -106,6 +128,7 @@ def create_hyp_table(S0, S1, tracks, initial_hyp=False):
         for j in range(len(S0)):
             if init_gate(S0[i], S1[j], 1):
                 mn_hyp.append(j + 1)
+
         mn_hyp.append(track_numbers[i])
         hyp_table.append(mn_hyp)
 
@@ -126,6 +149,12 @@ def create_hyp_table(S0, S1, tracks, initial_hyp=False):
     hyp_possible = np.delete(perm_table, non_zero_duplicates, axis=1)
 
     return hyp_possible
+
+
+def create_hyp_table(S0, S1, tracks):
+    # tbd: lav en funktion som bruger den nye gate til at lave en hyp_table
+
+    return None
 
 
 def assign_hyp_to_tracks(tracks, hyp_table):
@@ -213,28 +242,38 @@ timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
 # %% tracking test
 # create initial track
 initial_track_keys = list(range(1, timesort_xyz[0].shape[1] + 1))
-tracks_test = {0: []} # saving all tracks in a dict
+track_all_points = {0: []} # saving all tracks in a dict
 for i in range(len(initial_track_keys)):
     _key = initial_track_keys[i]
     _point = timesort_xyz[0][0, i]
-    tracks_test[_key] = [_point]
+    track_all_points[_key] = [_point]
 
 # assume [{1}, {2}, set()] from assign_hyp_to_track is true
-tracks_test[1].append(timesort_xyz[1][0, 0])
-tracks_test[2].append(timesort_xyz[1][0, 1])
+track_all_points[1].append(timesort_xyz[1][0, 0])
+track_all_points[2].append(timesort_xyz[1][0, 1])
 
 # create a dictionary with states in tracks (contains one less point than the tracks dict)
-tracks_test_state = dict()
-state1 = get_state_in_track(tracks_test[1])
-state2 = get_state_in_track(tracks_test[2])
+track_states = dict()
+state1 = get_state_in_track(track_all_points[1])
+state2 = get_state_in_track(track_all_points[2])
 
 # append states
-tracks_test_state[1] = [state1]
-tracks_test_state[2] = [state2]
+track_states[1] = [state1]
+track_states[2] = [state2]
 
 # %% try out kalman tracks_test_state
+# start kalman filters
+s_u, s_w, m_init = [np.eye(6)]*3
+track_filters = dict()
+
+# initialize kalman filters
+for k in track_states:
+    track_filters[k] = tr.KalmanMHT(s_u, s_w, m_init, track_states[k][0])
+
+# create gate for each prediction
+
 
 # %% testing
-hyp1_table = create_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], tracks_test, initial_hyp=True)
+hyp1_table = create_init_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], track_all_points)
 hyp_prob = Pik(hyp1_table)
-assign_hyp_to_tracks(tracks_test, hyp1_table)
+assign_hyp_to_tracks(track_all_points, hyp1_table)

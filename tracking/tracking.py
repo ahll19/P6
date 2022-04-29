@@ -713,23 +713,18 @@ class Kalman:
 class KalmanMHT:
     mu = 3.986004418e14  # wiki "standard gravitational parameter"
 
-    def __init__(self, S_u, S_w, x_guess, M_guess):
+    def __init__(self, S_u, S_w, M_guess, x_guess):
         self.z = []
 
         self.x_predictions = []
-        self.x_corrections = []
-
         self.M_predictions = []
-        self.M_corrections = []
-
-        self.dt = []
 
         self.S_u = S_u
         self.S_w = S_w
 
         self.dim = 6
-        self.x_corrections.append(x_guess)
-        self.M_corrections.append(M_guess)
+        self.x_corrections = [x_guess]
+        self.M_corrections = [M_guess]
 
     def __F(self, rx, ry, rz):
         r_i, r_j, r_k = rx, ry, rz
@@ -757,21 +752,40 @@ class KalmanMHT:
     def __kalman_gain(self):
         return self.M_predictions[-1] @ np.linalg.inv(self.S_w + self.M_predictions[-1])
 
-    def make_prediction(self):
+    def make_prediction(self, dt=0.1, app=False):
+        """
+        Calculate the prediciton of a track.
+        :param dt: time between point and prediction (assumed to be 0.1)
+        :param app: whether or not the results should be appended to the prediction list in the instance
+        :return: (prediction of x, prediction of M)
+        """
         x = self.x_corrections[-1]
         M = self.M_corrections[-1]
-        phi = self.__phi(x)
+        phi = self.__phi(x, dt)
 
         x_guess = phi @ x
         M_guess = phi @ M @ phi.T + self.S_u
 
-        self.x_predictions.append(x_guess)
-        self.M_predictions.append(M_guess)
+        if app:
+            self.x_predictions.append(x_guess)
+            self.M_predictions.append(M_guess)
+
+        return x_guess, M_guess
 
     def make_observation(self, new_x):
+        """
+        Adds a value to the observations of the track
+        :param new_x: new observation
+        :return: None
+        """
         self.z.append(new_x + np.random.normal(np.zeros((self.dim, self.dim)), self.S_w)[0])
 
     def make_correction(self):
+        """
+        Corrects the track. Should be called after a prediction and observations is
+        appended to the instance variables
+        :return: Correction step of x and M
+        """
         xp = self.x_predictions[-1]
         Mp = self.M_predictions[-1]
         K = self.__kalman_gain()
@@ -783,6 +797,8 @@ class KalmanMHT:
 
         self.x_corrections.append(x_correction)
         self.M_corrections.append(M_correction)
+
+        return x_correction, M_correction
 
 
 if __name__ == "__main__":
