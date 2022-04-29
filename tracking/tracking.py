@@ -41,6 +41,7 @@ def import_data(filename):
 
     return t, R, A, E, dR, SNR
 
+
 def import_data_v2(filename):
     """
     Parameters
@@ -76,7 +77,8 @@ def import_data_v2(filename):
         dR = np.concatenate((dR[index:], dR[:index]))
         t = np.round(np.arange(0, len(R) / 10, 0.1), 2)
 
-    return t, R, A, E, dR, SNR,index
+    return t, R, A, E, dR, SNR, index
+
 
 def plot_data(state1, time1, name1, state2=None, time2=None, name2=None, window_size=1, savename=None):
     """
@@ -512,24 +514,22 @@ def conversion(data):
         "Distance is the range measured from the radar"
         return R + distance * rho_hat
 
-
     placement = np.array([0, 4.4, 0]) * np.pi / 180
     phi = [0]
     theta = placement[1]
     H = placement[2]
-    time = data[:,0]
-    a = data[:,3]
-    A = data[:,2]
+    time = data[:, 0]
+    a = data[:, 3]
+    A = data[:, 2]
     a *= np.pi / 180
     A *= np.pi / 180
 
-    rho = data[:,1] * 1000
+    rho = data[:, 1] * 1000
 
     r_0 = np.zeros((len(A), 3))
     R_ = R(H, phi, theta)
     # Kør al dataen igennem
     for i in range(len(A)):
-
         delta_ = delta(phi, a[i], A[i])
 
         alpha_ = alpha(phi, theta, a[i], A[i], delta_)
@@ -539,8 +539,7 @@ def conversion(data):
         r_ = r(R_, rho[i], rho_hat_)
         r_0[i] = r_
 
-    return np.hstack((np.array([time]).T,r_0))
-
+    return np.hstack((np.array([time]).T, r_0))
 
 
 def track_MSE(track_predicted, track_true, t_predicted, t_true):
@@ -578,11 +577,11 @@ def check_velocity_algo():
     index_diff = np.argmax(true_state[:, 0]) - np.argmax(vel_state[:, 0])
     names = ["x", "y", "z", r"$\dot{x}$", r"$\dot{y}$", r"$\dot{z}$"]
     n1 = int(10e3)
-    n2 = int(2*10e3)
+    n2 = int(2 * 10e3)
 
     for i in range(6):
         plt.plot(vel_state[n1:n2, i], label="algo", lw=10, alpha=0.2)
-        plt.plot(true_state[n1+index_diff:n2+index_diff, i], label="true")
+        plt.plot(true_state[n1 + index_diff:n2 + index_diff, i], label="true")
         plt.ylim((np.min(vel_state[n1:n2, i]) - 1, np.max(vel_state[n1:n2, i]) + 1))
         plt.title(names[i])
         plt.legend()
@@ -600,14 +599,13 @@ def time_slice(data):
     time_slices : list
         Returns a list where each index contains the coordinates of each obsevation at the time index.
     """
-    time_steps = sorted(set(np.round(data[:,0],1)))
+    time_steps = sorted(set(np.round(data[:, 0], 1)))
     time_steps = np.array(list(time_steps))
     time_slices = []
     for t in time_steps:
-        time_index = np.where(np.round(data[:,0],1) == round(t,1))
-        time_slices.append(data[time_index,:])
+        time_index = np.where(np.round(data[:, 0], 1) == round(t, 1))
+        time_slices.append(data[time_index, :])
     return time_slices
-
 
 
 # Filter Classes----------------------------------------------------------------------
@@ -710,6 +708,81 @@ class Kalman:
                          np.asarray(self.z)
                          ]
         return return_names, return_values
+
+
+class KalmanMHT:
+    mu = 3.986004418e14  # wiki "standard gravitational parameter"
+
+    def __init__(self, S_u, S_w, x_guess, M_guess):
+        self.z = []
+
+        self.x_predictions = []
+        self.x_corrections = []
+
+        self.M_predictions = []
+        self.M_corrections = []
+
+        self.dt = []
+
+        self.S_u = S_u
+        self.S_w = S_w
+
+        self.dim = 6
+        self.x_corrections.append(x_guess)
+        self.M_corrections.append(M_guess)
+
+    def __F(self, rx, ry, rz):
+        r_i, r_j, r_k = rx, ry, rz
+        r = np.sqrt(rx ** 2 + ry ** 2 + rz ** 2)
+        F1, F2, F4 = np.zeros((3, 3)), np.eye(3), np.zeros((3, 3))
+        F3 = np.asanyarray([[-self.mu / (r ** 3) + (3 * self.mu * r_i ** 2) / (r ** 5),
+                             (3 * self.mu * r_i * r_j) / (r ** 5), (3 * self.mu * r_i * r_k) / (r ** 5)],
+                            [(3 * self.mu * r_i * r_j) / (r ** 5),
+                             -self.mu / r ** 3 + (3 * self.mu * r_j ** 2) / (r ** 5),
+                             (3 * self.mu * r_j * r_k) / (r ** 5)],
+                            [(3 * self.mu * r_i * r_k) / (r ** 5), (3 * self.mu * r_j * r_k) / (r ** 5),
+                             -self.mu / (r ** 3) + (3 * self.mu * r_k ** 2) / (r ** 5)]])
+        F_top = np.concatenate((F1, F2), axis=1)
+        F_bot = np.concatenate((F3, F4), axis=1)
+        F = np.concatenate((F_top, F_bot))
+
+        return F
+
+    def __phi(self, x_state, dt):
+        F = self.__F(x_state[0], x_state[1], x_state[2])
+        res = np.eye(self.dim) + dt * F
+
+        return res
+
+    def __kalman_gain(self):
+        return self.M_predictions[-1] @ np.linalg.inv(self.S_w + self.M_predictions[-1])
+
+    def make_prediction(self):
+        x = self.x_corrections[-1]
+        M = self.M_corrections[-1]
+        phi = self.__phi(x)
+
+        x_guess = phi @ x
+        M_guess = phi @ M @ phi.T + self.S_u
+
+        self.x_predictions.append(x_guess)
+        self.M_predictions.append(M_guess)
+
+    def make_observation(self, new_x):
+        self.z.append(new_x + np.random.normal(np.zeros((self.dim, self.dim)), self.S_w)[0])
+
+    def make_correction(self):
+        xp = self.x_predictions[-1]
+        Mp = self.M_predictions[-1]
+        K = self.__kalman_gain()
+        z = self.z[-1]
+        I = np.eye(self.dim)
+
+        x_correction = xp + K @ (z - xp)
+        M_correction = (I - K) @ Mp
+
+        self.x_corrections.append(x_correction)
+        self.M_corrections.append(M_correction)
 
 
 if __name__ == "__main__":

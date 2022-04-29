@@ -159,6 +159,35 @@ def assign_hyp_to_tracks(tracks, hyp_table):
     return point_possible_tracks
 
 
+def kalman_step(tracks, kalman):
+    for k in kalman:
+        kalman[k].make_prediction()
+        print(kalman[k].x_predictions)
+
+
+def get_state_in_track(track, idx=None):
+    """
+    NOTE: use velocity_algo_pair, it's better (and more work)
+    Gets the state from a track. If idx is not given the functions uses
+    the lates points in track to generate a new state.
+    :param track: The track to get the state from
+    :param idx: Tuple containing 2 indeces (prev point, next point).
+    :return: returns a state vector [x, y, z, xdot, ydot, zdot]
+    """
+    if idx is None:
+        x1, x2 = track[-2], track[-1]
+        dt = x2[0]-x1[0]
+        dx = (x2[1:]-x1[1:])/dt
+    else:
+        x1, x2 = track[idx[1]], track[idx[0]]
+        dt = x2[0]-x1[0]
+        dx = (x2[1:]-x1[1:])/dt
+
+    state = np.hstack((x2[1:], dx))
+
+    return state
+
+
 # %% Data import and transformation
 imports = ["snr50/truth1.txt", "snr50/truth2.txt", "nfft_15k/false.txt"]
 
@@ -179,15 +208,31 @@ data = data[:12]
 
 # Convert to cartesian coordinates
 time_xyz = tr.conversion(data)
-timesort_xyz = tr.time_slice(time_xyz)
+timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
 
-# %% creating initial tracks
+# %% tracking test
+# create initial track
 initial_track_keys = list(range(1, timesort_xyz[0].shape[1] + 1))
-tracks_test = {0: []}
+tracks_test = {0: []} # saving all tracks in a dict
 for i in range(len(initial_track_keys)):
     _key = initial_track_keys[i]
     _point = timesort_xyz[0][0, i]
-    tracks_test[_key] = _point
+    tracks_test[_key] = [_point]
+
+# assume [{1}, {2}, set()] from assign_hyp_to_track is true
+tracks_test[1].append(timesort_xyz[1][0, 0])
+tracks_test[2].append(timesort_xyz[1][0, 1])
+
+# create a dictionary with states in tracks (contains one less point than the tracks dict)
+tracks_test_state = dict()
+state1 = get_state_in_track(tracks_test[1])
+state2 = get_state_in_track(tracks_test[2])
+
+# append states
+tracks_test_state[1] = [state1]
+tracks_test_state[2] = [state2]
+
+# %% try out kalman tracks_test_state
 
 # %% testing
 hyp1_table = create_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], tracks_test, initial_hyp=True)
