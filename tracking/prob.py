@@ -101,11 +101,17 @@ hyp1_table = create_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1
 def N_pdf(mean,Sig_inv):
     Sig = np.linalg.inv(Sig_inv)
     n = len(Sig)
-    return (-0.5 * (mean.T@Sig_inv@mean)) / \
+    return (np.exp(-0.5 * (mean.T@Sig_inv@mean))) / \
         (np.sqrt((2*np.pi)**n * np.linalg.norm(Sig)))
 
-def Pik(H, c=1, P_g=0.2, P_D = 0.2, prior_info=False, 
-        y_t=[], y_t_hat=[], Sig_inv=[]):
+def beta_density(NFFT,n):
+    n_FA = NFFT*np.exp(-10)
+    beta_FT = n_FA/n
+    beta_NT = (n-n_FA)/n
+    return beta_FT, beta_NT
+
+def Pik(H, c=1, P_g=0.2, P_D = 0.2, NFFT=15000, 
+        y_t=None, y_t_hat=None, Sig_inv=None):
     """
     Parameters
     ----------
@@ -127,6 +133,7 @@ def Pik(H, c=1, P_g=0.2, P_D = 0.2, prior_info=False,
 
     """
     
+    beta_FT, beta_NT = beta_density(NFFT,len(H))
     N_TGT = np.max(H)-len(H) #Number of previously known targets
     
     prob = np.zeros(len(H[0]))
@@ -135,13 +142,13 @@ def Pik(H, c=1, P_g=0.2, P_D = 0.2, prior_info=False,
         N_NT = np.count_nonzero(hyp>=N_TGT+1) #Number of known targets in hyp
         N_DT = len(hyp)-N_FT-N_NT #Number of prioer targets in given hyp
 
-        beta_FT = N_FT/(N_NT+N_DT+N_FT)
-        beta_NT = N_NT/(N_FT+N_DT+N_NT)
+        #beta_FT = N_FT/(N_NT+N_DT+N_FT)
+        #beta_NT = N_NT/(N_FT+N_DT+N_NT)
 
         prob[i] = (1/c) * (P_D**(N_DT) * (1-P_D)**(N_TGT-N_DT) * \
             beta_FT**(N_FT) * beta_NT**(N_NT))
         
-        if prior_info == True:
+        if N_DT >= 1:
             product = 1
             for j in range(N_DT): 
                 product *= N_pdf(y_t[j]-y_t_hat[j],Sig_inv) # Må være den prediction der hører til givet punkt der menes
@@ -165,8 +172,11 @@ def prune(prob_hyp,th=0.1,N_h=10000):
     
     return pruned_hyp
 
+P_D = 1 - np.exp(-10)
 
-print(Pik(hyp1_table))
+meh = Pik(hyp1_table, P_g = 0.2, P_D=P_D,c=0.00001)
+print(meh)
+print(prune(meh))
 
 
     
