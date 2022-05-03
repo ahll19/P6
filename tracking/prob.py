@@ -110,8 +110,8 @@ def beta_density(NFFT,n):
     beta_NT = (n-n_FA)/n
     return beta_FT, beta_NT
 
-def Pik(H, c=1, P_g=0.2, P_D = 0.2, NFFT=15000, 
-        y_t=None, y_t_hat=None, Sig_inv=None):
+def Pik(H, c=1, P_g=0.2, P_D = 0.2, NFFT=15000,
+y_t=None, y_t_hat=None, Sig_inv=None):
     """
     Parameters
     ----------

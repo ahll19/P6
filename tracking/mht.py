@@ -10,10 +10,7 @@ from itertools import product
 
 # %% Function definitions
 def init_gate(q1, q2, dt, vmax=12000.0):
-    if np.linalg.norm(q1 - q2) <= vmax * dt:
-        return True
-    else:
-        return False
+    return np.linalg.norm(q1 - q2) <= vmax * dt
 
 
 def mah_gate(prediction, observation, threshold):
@@ -24,28 +21,34 @@ def mah_gate(prediction, observation, threshold):
     :param threshold: threshhold distance thang
     :return: True if the point is in the gate, False otherwise
     """
-    _x, m = prediction[0], prediction[1]
+    _x, m = prediction[0], prediction[1][:3, :3]
+    print(m)
     y = observation
 
     x = _x[:3]
     if len(y) == 4:
         y = y[1:]
 
-    d = (x-y).T@np.linalg.inv(m)@(x-y)
-    if d < threshold:
-        return True
-    else:
-        return False
+    d = (x - y).T @ np.linalg.inv(m) @ (x - y)
+
+    return d < threshold
 
 
 def N_pdf(mean, Sig_inv):
     Sig = np.linalg.inv(Sig_inv)
     n = len(Sig)
-    return (-0.5 * (mean.T @ Sig_inv @ mean)) / \
+    return (np.exp(-0.5 * (mean.T @ Sig_inv @ mean))) / \
            (np.sqrt((2 * np.pi) ** n * np.linalg.norm(Sig)))
 
 
-def Pik(H, c=1, P_g=0.2, P_D=0.2, prior_info=False, y_t=None, y_t_hat=None, Sig_inv=None):
+def beta_density(NFFT, n):
+    n_FA = NFFT * np.exp(-10)
+    beta_FT = n_FA / n
+    beta_NT = (n - n_FA) / n
+    return beta_FT, beta_NT
+
+
+def Pik(H, c=1, P_g=0.2, P_D=0.99, NFFT=15000, y_t=None, y_t_hat=None, Sig_inv=None):
     """
     Parameters
     ----------
@@ -67,6 +70,7 @@ def Pik(H, c=1, P_g=0.2, P_D=0.2, prior_info=False, y_t=None, y_t_hat=None, Sig_
 
     """
 
+    beta_FT, beta_NT = beta_density(NFFT, len(H))
     N_TGT = np.max(H) - len(H)  # Number of previously known targets
 
     prob = np.zeros(len(H[0]))
@@ -75,18 +79,18 @@ def Pik(H, c=1, P_g=0.2, P_D=0.2, prior_info=False, y_t=None, y_t_hat=None, Sig_
         N_NT = np.count_nonzero(hyp >= N_TGT + 1)  # Number of known targets in hyp
         N_DT = len(hyp) - N_FT - N_NT  # Number of prioer targets in given hyp
 
-        beta_FT = N_FT / (N_NT + N_DT + N_FT)
-        beta_NT = N_NT / (N_FT + N_DT + N_NT)
+        # beta_FT = N_FT/(N_NT+N_DT+N_FT)
+        # beta_NT = N_NT/(N_FT+N_DT+N_NT)
 
         prob[i] = (1 / c) * (P_D ** N_DT * (1 - P_D) ** (N_TGT - N_DT) * beta_FT ** N_FT * beta_NT ** N_NT)
 
-        if prior_info:
-            product = 1
+        if N_DT >= 1:
+            _product = 1
             for j in range(N_DT):
-                product *= N_pdf(y_t[j] - y_t_hat[j],
-                                 Sig_inv)  # Må være den prediction der hører til givet punkt der menes
+                _product *= N_pdf(y_t[j] - y_t_hat[j],
+                                  Sig_inv)  # Må være den prediction der hører til givet punkt der menes
 
-            prob[i] *= product * P_g
+            prob[i] *= _product * P_g
 
     prob_hyp = np.vstack((prob, H))
 
@@ -126,7 +130,7 @@ def create_init_hyp_table(S0, S1, tracks):
     for i in range(len(S1)):
         mn_hyp = [0]
         for j in range(len(S0)):
-            if init_gate(S0[i], S1[j], 1):
+            if init_gate(S0[i], S1[j], 1):  # istedet for 1 tag tidsforskellen imellem punkterne
                 mn_hyp.append(j + 1)
 
         mn_hyp.append(track_numbers[i])
@@ -151,10 +155,56 @@ def create_init_hyp_table(S0, S1, tracks):
     return hyp_possible
 
 
-def create_hyp_table(S0, S1, tracks):
-    # tbd: lav en funktion som bruger den nye gate til at lave en hyp_table
+def create_hyp_table(new_points, kalman_tracks, append_pred=False):
+    """
+    Create hypothesis table from current tracks, and a new set of points.
 
-    return None
+    :param new_points: array of new points. shape of (1, n, 4), where n is number of new points
+    :param kalman_tracks: dictionary of kalman filters
+    :param append_pred: boolean telling the kalman filters to save the predictions. STT
+    :return: Returns a table of possible hypotheses
+    """
+    # fix dim of new_points
+    new_points = new_points[0, :, :]
+
+    # create list of new track numbers
+    max_track = max(kalman_tracks.keys()) + 1
+    lp = len(new_points)
+    track_numbers = np.arange(max_track, max_track + lp)
+
+    # get predictions of all tracks
+    predictions = dict()
+    for k in kalman_tracks:
+        predictions[k] = kalman_tracks[k].make_prediction(app=append_pred)
+
+    # create hypothesis table from covariance gating
+    hyp_table = []
+    for i in range(lp):
+        mn_hyp = [0]
+        for j in predictions:
+            if mah_gate(predictions[j], new_points[i], 10e4):
+                mn_hyp.append(j)
+
+        mn_hyp.append(track_numbers[i])
+        hyp_table.append(mn_hyp)
+
+    # create all possible combinations
+    combinations = [p for p in product(*hyp_table)]
+    perm_table = np.asarray(combinations).T
+
+    # remove impossible combinations
+    non_zero_duplicates = []
+    for i in range(len(perm_table[0])):
+        # if there is a duplicate in column i+1 of perm_table, the value is saved in dup
+        u, c = np.unique(perm_table[:, i], return_counts=True)
+        dup = u[c > 1]
+
+        # if there are non-zero duplicates, non_zero_duplicates gets a True, otherwise it gets a false
+        non_zero_duplicates.append(np.any(dup > 0))
+
+    hyp_possible = np.delete(perm_table, non_zero_duplicates, axis=1)
+
+    return hyp_possible
 
 
 def assign_hyp_to_tracks(tracks, hyp_table):
@@ -188,12 +238,6 @@ def assign_hyp_to_tracks(tracks, hyp_table):
     return point_possible_tracks
 
 
-def kalman_step(tracks, kalman):
-    for k in kalman:
-        kalman[k].make_prediction()
-        print(kalman[k].x_predictions)
-
-
 def get_state_in_track(track, idx=None):
     """
     NOTE: use velocity_algo_pair, it's better (and more work)
@@ -205,12 +249,12 @@ def get_state_in_track(track, idx=None):
     """
     if idx is None:
         x1, x2 = track[-2], track[-1]
-        dt = x2[0]-x1[0]
-        dx = (x2[1:]-x1[1:])/dt
+        dt = x2[0] - x1[0]
+        dx = (x2[1:] - x1[1:]) / dt
     else:
         x1, x2 = track[idx[1]], track[idx[0]]
-        dt = x2[0]-x1[0]
-        dx = (x2[1:]-x1[1:])/dt
+        dt = x2[0] - x1[0]
+        dx = (x2[1:] - x1[1:]) / dt
 
     state = np.hstack((x2[1:], dx))
 
@@ -237,12 +281,12 @@ data = data[:12]
 
 # Convert to cartesian coordinates
 time_xyz = tr.conversion(data)
-timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
+timesort_xyz = tr.time_slice(time_xyz)  # point sorted by time [t, x, y, z]
 
-# %% tracking test
+# %% create track dicts
 # create initial track
 initial_track_keys = list(range(1, timesort_xyz[0].shape[1] + 1))
-track_all_points = {0: []} # saving all tracks in a dict
+track_all_points = {0: []}  # saving all tracks in a dict
 for i in range(len(initial_track_keys)):
     _key = initial_track_keys[i]
     _point = timesort_xyz[0][0, i]
@@ -261,19 +305,21 @@ state2 = get_state_in_track(track_all_points[2])
 track_states[1] = [state1]
 track_states[2] = [state2]
 
-# %% try out kalman tracks_test_state
+# %% create kalman dicts
 # start kalman filters
-s_u, s_w, m_init = [np.eye(6)]*3
+s_u, s_w, m_init = np.eye(6), np.eye(6), np.eye(6) * 100
 track_filters = dict()
 
 # initialize kalman filters
 for k in track_states:
     track_filters[k] = tr.KalmanMHT(s_u, s_w, m_init, track_states[k][0])
 
-# create gate for each prediction
+# TESTING----------------------------------------------------------------------
+# %% Step 0: initialize alting
+init_hyp_table = create_init_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], track_all_points)
 
+# hyp1_table = create_init_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], track_all_points)
+# hyp_prob = Pik(hyp1_table)
 
-# %% testing
-hyp1_table = create_init_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], track_all_points)
-hyp_prob = Pik(hyp1_table)
-assign_hyp_to_tracks(track_all_points, hyp1_table)
+# assign_hyp_to_tracks(track_all_points, hyp1_table)
+# a = create_hyp_table(timesort_xyz[2], track_filters)
