@@ -111,7 +111,7 @@ def beta_density(NFFT,n):
     return beta_FT, beta_NT
 
 def Pik(H, c=1, P_g=0.2, P_D = 0.2, NFFT=15000,
-y_t=None, y_t_hat=None, Sig_inv=None):
+        y_t=None, y_t_hat=None, Sig_inv=None):
     """
     y_t is measurements at time t, where y_t_hat is a prediction at time t-1.
     The calculation y_t[i]-y_t_hat[i] corresponds to the calculation in the
