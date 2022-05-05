@@ -7,6 +7,7 @@ import importlib
 import tracking as tr
 from itertools import product
 import matplotlib.pyplot as plt
+from scipy import special
 
 
 # %% Function definitions
@@ -182,10 +183,13 @@ def prune(prob_hyp,th=0.1,N_h=10000):
     
     return pruned_hyp
 
-P_D = 1 - np.exp(-10)
+
+P_FA = np.exp(-10)
+snr = 50
+P_D = 0.5*special.erfc(special.erfcinv(2*P_FA) - np.sqrt(snr/2) )
 
 meh = Pik(hyp1_table, y_t=a, y_t_hat=a_pred, Sig_inv=sig_inv, 
-          P_g = 0.2, P_D=P_D,c=0.00001)
+          P_g = 0.2, P_D=P_D,c=1)
 
 print(hyp1_table)
 print(meh)
