@@ -7,6 +7,7 @@ import importlib
 import tracking as tr
 from itertools import product
 import matplotlib.pyplot as plt
+from scipy import special
 
 
 # %% Function definitions
@@ -111,8 +112,15 @@ def beta_density(NFFT,n):
     return beta_FT, beta_NT
 
 def Pik(H, c=1, P_g=0.2, P_D = 0.2, NFFT=15000,
-y_t=None, y_t_hat=None, Sig_inv=None):
+        y_t=None, y_t_hat=None, Sig_inv=None):
     """
+    y_t is measurements at time t, where y_t_hat is a prediction at time t-1.
+    The calculation y_t[i]-y_t_hat[i] corresponds to the calculation in the
+    kalman gate. They are both 2d arrays with the same amount of rows and 3 
+    columns. Sig_inv is the same cov matrix as the one from the gate and is a
+    3d array, e.g., np.array([np.eye(3),np.eye(3)]) in the case with 2 predic-
+    tions. 
+    
     Parameters
     ----------
     H : Hypothesis matrix. len(columns)=amount of hypothesis, len(rows)= amount
@@ -142,16 +150,14 @@ y_t=None, y_t_hat=None, Sig_inv=None):
         N_NT = np.count_nonzero(hyp>=N_TGT+1) #Number of known targets in hyp
         N_DT = len(hyp)-N_FT-N_NT #Number of prioer targets in given hyp
 
-        #beta_FT = N_FT/(N_NT+N_DT+N_FT)
-        #beta_NT = N_NT/(N_FT+N_DT+N_NT)
-
         prob[i] = (1/c) * (P_D**(N_DT) * (1-P_D)**(N_TGT-N_DT) * \
             beta_FT**(N_FT) * beta_NT**(N_NT))
         
         if N_DT >= 1:
             product = 1
-            for j in range(N_DT): 
-                product *= N_pdf(y_t[j]-y_t_hat[j],Sig_inv) # Må være den prediction der hører til givet punkt der menes
+            indecies = np.where((hyp<=N_TGT) & (hyp>0))[0]
+            for j in indecies:
+                product *= N_pdf(y_t[j]-y_t_hat[j],Sig_inv[j]) 
             
             prob[i] *= product*P_g
     
@@ -161,6 +167,11 @@ y_t=None, y_t_hat=None, Sig_inv=None):
     
     return prob_hyp
 
+a = timesort_xyz[0][0][:2,1:]
+
+a_pred = timesort_xyz[1][0][:2,1:]
+
+sig_inv = np.array([np.eye(3),np.eye(3)])
 
 def prune(prob_hyp,th=0.1,N_h=10000):
     cut_index = np.min(np.where(prob_hyp[0]<th))
@@ -172,11 +183,16 @@ def prune(prob_hyp,th=0.1,N_h=10000):
     
     return pruned_hyp
 
-P_D = 1 - np.exp(-10)
 
-meh = Pik(hyp1_table, P_g = 0.2, P_D=P_D,c=0.00001)
+P_FA = np.exp(-10)
+snr = 50
+P_D = 0.5*special.erfc(special.erfcinv(2*P_FA) - np.sqrt(snr/2) )
+
+meh = Pik(hyp1_table, y_t=a, y_t_hat=a_pred, Sig_inv=sig_inv, 
+          P_g = 0.2, P_D=P_D,c=1)
+
+print(hyp1_table)
 print(meh)
-print(prune(meh))
 
 
     
