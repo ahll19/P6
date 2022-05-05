@@ -604,7 +604,7 @@ def time_slice(data):
     time_slices = []
     for t in time_steps:
         time_index = np.where(np.round(data[:, 0], 1) == round(t, 1))
-        time_slices.append(data[time_index, :])
+        time_slices.append(data[time_index, :][0])
     return time_slices
 
 

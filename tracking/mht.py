@@ -1,143 +1,111 @@
 import sys
 import os
-
-sys.path.insert(1, os.getcwd())
-
 import numpy as np
-import tracking as tr
 from itertools import product
 
-
-# %% Function definitions
-def init_gate(q1, q2, dt, vmax=12000.0):
-    return np.linalg.norm(q1 - q2) <= vmax * dt
+sys.path.insert(1, os.getcwd())
+import tracking as tr
 
 
-def mah_gate(prediction, observation, threshold):
+# Global variables ------------------------------------------------------------
+total_tracks = 0
+mu = 3.986004418e14  # wiki "standard gravitational parameter"
+
+
+# Intermediate functions ------------------------------------------------------
+def __predict(m0, m1):
+    global mu
+    r_i, r_j, r_k = m1[1], m1[2], m1[3]
+    r = np.sqrt(m1[1] ** 2 + m1[2] ** 2 + m1[3] ** 2)
+    F1, F2, F4 = np.zeros((3, 3)), np.eye(3), np.zeros((3, 3))
+    F3 = np.asanyarray([[-mu / (r ** 3) + (3 * mu * r_i ** 2) / (r ** 5),
+                         (3 * mu * r_i * r_j) / (r ** 5), (3 * mu * r_i * r_k) / (r ** 5)],
+                        [(3 * mu * r_i * r_j) / (r ** 5),
+                         -mu / r ** 3 + (3 * mu * r_j ** 2) / (r ** 5),
+                         (3 * mu * r_j * r_k) / (r ** 5)],
+                        [(3 * mu * r_i * r_k) / (r ** 5), (3 * mu * r_j * r_k) / (r ** 5),
+                         -mu / (r ** 3) + (3 * mu * r_k ** 2) / (r ** 5)]])
+    F_top = np.concatenate((F1, F2), axis=1)
+    F_bot = np.concatenate((F3, F4), axis=1)
+    F = np.concatenate((F_top, F_bot))
+
+    dt = np.abs(m1[0] - m0[0])
+    phi = np.eye(6) + F * dt
+
+    # m_predict is a static size, and does not change with different states
+    # this is a simplification, and is subject to change if the algorithm
+    # does not work
+    dm1 = (m1[1:] - m0[1:])/dt
+    x = np.hstack((m1[1:], dm1))
+    x_predict = phi @ x
+    m_predict = phi @ np.eye(6) @ phi.T + np.eye(6)
+
+    return x_predict, m_predict
+
+
+# Main Functions --------------------------------------------------------------
+def init_tracking(init_point):
+    # create a the initial hypothesis table
+    global total_tracks
+    ls = len(init_point)
+    total_tracks += ls
+
+    hyp_table = np.zeros((2, ls, 2))
+    for i in range(ls):
+        hyp_table[0, i, 1] = i + 1
+
+    return hyp_table, init_point
+
+
+def iter_tracking(s0, s1, hyp_table, predictions, args=None):
     """
-    Create Mahalanobis gate for a prediction and observation
-    :param prediction: tuple (returned by make_prediction from KalmanMHT) of state and variance prediction
-    :param observation: new observation (can be [t, x, y, z] or [x, y, z] array)
-    :param threshold: threshhold distance thang
-    :return: True if the point is in the gate, False otherwise
-    """
-    _x, m = prediction[0], prediction[1][:3, :3]
-    print(m)
-    y = observation
+    Do some cool stuff
 
-    x = _x[:3]
-    if len(y) == 4:
-        y = y[1:]
-
-    d = (x - y).T @ np.linalg.inv(m) @ (x - y)
-
-    return d < threshold
-
-
-def N_pdf(mean, Sig_inv):
-    Sig = np.linalg.inv(Sig_inv)
-    n = len(Sig)
-    return (np.exp(-0.5 * (mean.T @ Sig_inv @ mean))) / \
-           (np.sqrt((2 * np.pi) ** n * np.linalg.norm(Sig)))
-
-
-def beta_density(NFFT, n):
-    n_FA = NFFT * np.exp(-10)
-    beta_FT = n_FA / n
-    beta_NT = (n - n_FA) / n
-    return beta_FT, beta_NT
-
-
-def Pik(H, c=1, P_g=0.2, P_D=0.99, NFFT=15000, y_t=None, y_t_hat=None, Sig_inv=None):
-    """
-    Parameters
-    ----------
-    H : Hypothesis matrix. len(columns)=amount of hypothesis, len(rows)= amount
-    of points
-    c : Scaling of probability. The default is 1.
-    P_g : Probability relating to prior points (only used if prior_info=True).
-    The default is 0.2.
-    P_D : Probability for detection. The default is 0.2.
-    prior_info : Boolian - if True then we have prior info, Talse otherwise.
-    The default is False.
-    y_t : Measurements at time t. The default is [].
-    y_t_hat : Predictions at time t. The default is [].
-    Sig_inv : Covariance matrix from Kalman. The default is [].
-
-    Returns
-    -------
-    prob : Array type of probabilities for each hypothesis
+    args = (vmax, threshold)
+    vmax = max velocity of satellite, used for simple gating
+    threshold = threshold for the "mahalanobis" norm
 
     """
+    # Keep track (haha) of the numbering of new tracks
 
-    beta_FT, beta_NT = beta_density(NFFT, len(H))
-    N_TGT = np.max(H) - len(H)  # Number of previously known targets
+    global total_tracks
+    ls = len(s1)
+    new_track_numbers = np.arange(total_tracks, total_tracks + ls)
+    total_tracks += ls
 
-    prob = np.zeros(len(H[0]))
-    for i, hyp in enumerate(H.T):
-        N_FT = np.count_nonzero(hyp == 0)  # Number of false
-        N_NT = np.count_nonzero(hyp >= N_TGT + 1)  # Number of known targets in hyp
-        N_DT = len(hyp) - N_FT - N_NT  # Number of prioer targets in given hyp
-
-        # beta_FT = N_FT/(N_NT+N_DT+N_FT)
-        # beta_NT = N_NT/(N_FT+N_DT+N_NT)
-
-        prob[i] = (1 / c) * (P_D ** N_DT * (1 - P_D) ** (N_TGT - N_DT) * beta_FT ** N_FT * beta_NT ** N_NT)
-
-        if N_DT >= 1:
-            _product = 1
-            for j in range(N_DT):
-                _product *= N_pdf(y_t[j] - y_t_hat[j],
-                                  Sig_inv)  # Må være den prediction der hører til givet punkt der menes
-
-            prob[i] *= _product * P_g
-
-    prob_hyp = np.vstack((prob, H))
-
-    prob_hyp = prob_hyp.T[prob_hyp.T[:, 0].argsort()[::-1]].T
-
-    return prob_hyp
-
-
-def prune(prob_hyp, th=0.1, N_h=10000):
-    cut_index = np.min(np.where(prob_hyp[0] < th))
-
-    pruned_hyp = prob_hyp[:, :cut_index]
-
-    if len(pruned_hyp[0]) >= N_h:
-        pruned_hyp = pruned_hyp[:, :N_h]
-
-    return pruned_hyp
-
-
-def create_init_hyp_table(S0, S1, tracks):
-    """
-    NOTE: rewrite such that S0 is not needed (can be gained from tracks)
-    Given a set of measurements, uses gating to list all possible new hypothesis
-    :param S0: Last points from each track (e.g. [track1[-1], track2[-1], ...])
-    :param S1: New measurements
-    :param tracks:
-    :param initial_hyp:
-    :return:
-    """
-    # get numbers for new track hypothsis
-    current_tracks = np.sort(list(tracks.keys()))
-    new_track_start = current_tracks[-1] + 1
-    track_numbers = np.arange(new_track_start, new_track_start + len(S1))
-
-    # create initial hypothesis table
-    hyp_table = []
-    for i in range(len(S1)):
+    new_table = []
+    for i, m1 in enumerate(s1):
         mn_hyp = [0]
-        for j in range(len(S0)):
-            if init_gate(S0[i], S1[j], 1):  # istedet for 1 tag tidsforskellen imellem punkterne
-                mn_hyp.append(j + 1)
+        for col in range(len(hyp_table[1, 0, :])):
+            for row in range(len(hyp_table[1, :, 0])):
+                # Don't gate on "empty" tracks
+                if hyp_table[0, row, col] == 0:
+                    continue
 
-        mn_hyp.append(track_numbers[i])
-        hyp_table.append(mn_hyp)
+                # Check which gate to use
+                new_track = not bool(hyp_table[1, row, col])
+                if new_track:
+                    # Simple gate for new tracks
+                    dt = np.abs(m1[0]-s0[row][0])
+                    vmax = args[0]
+                    d_dist = m1[1:] - s0[row][1:]
+                    if np.linalg.norm(d_dist) <= vmax * dt:
+                        mn_hyp.append(hyp_table[0, row, col])
+                else:
+                    # Mahalanobis gating (not really though)
+                    # predictions must be tupe of 2 lists (x, m)
+                    x, m = predictions[0][row], predictions[1][row]
+                    d = (x - m1[1:]).T @ np.linalg.inv(m) @ (x - m1[1:])
+                    threshold = args[1]
+                    if d < threshold:
+                        mn_hyp.append(hyp_table[0, row, col])
 
-    # create all possible combinations
-    combinations = [p for p in product(*hyp_table)]
+        # save the potential of new track in the hypothesis
+        mn_hyp.append(new_track_numbers[i])
+        new_table.append(mn_hyp)
+
+    # permutate the hypothesis table
+    combinations = [p for p in product(*new_table)]
     perm_table = np.asarray(combinations).T
 
     # remove impossible combinations
@@ -150,121 +118,54 @@ def create_init_hyp_table(S0, S1, tracks):
         # if there are non-zero duplicates, non_zero_duplicates gets a True, otherwise it gets a false
         non_zero_duplicates.append(np.any(dup > 0))
 
+    # create array of possible hypotheses
     hyp_possible = np.delete(perm_table, non_zero_duplicates, axis=1)
 
-    return hyp_possible
+    # add an array which indicates which tracks are new and which are old
+    new_track_indc = np.zeros_like(hyp_possible)
+    predictions = []
+
+    for col in range(len(hyp_possible[0, :])):
+        for row in range(len(hyp_possible[:, 0])):
+            # check if the track is not a new one
+            # and if the track is not 0
+            condition_1 = hyp_possible[row, col] not in new_track_numbers
+            condition_2 = hyp_possible[row, col] != 0
+            if condition_1 and condition_2:
+                # indicate that this entry is part of an old track
+                new_track_indc[row, col] = 1
+                track_num = hyp_possible[row, col]
+                # create a prediction for this entry
+                """
+                NOTE:
+                as of now, the algorithm assumes that each track will only
+                corrospond to one previous point. Meaning that each row of
+                a hypothesis table will only have a maximum of one 
+                instance of a track. If more instances occur the algorithm
+                will not handle the multiple predictions necessary to
+                continue with the gating of the next points.
+                Only the first instance where the track is found in the
+                old track is use to create predictions
+                """
+                idx_track = np.where(hyp_table == track_num)[0]
+                old_point = s0[idx_track[0]]
+
+                prediction = __predict(old_point, s1[row])
+                predictions.append(prediction)
+                """
+                TODO:
+                find out how to save predictions, such that the gating can be
+                done on the right points.
+                """
+
+    return predictions
 
 
-def create_hyp_table(new_points, kalman_tracks, append_pred=False):
-    """
-    Create hypothesis table from current tracks, and a new set of points.
 
-    :param new_points: array of new points. shape of (1, n, 4), where n is number of new points
-    :param kalman_tracks: dictionary of kalman filters
-    :param append_pred: boolean telling the kalman filters to save the predictions. STT
-    :return: Returns a table of possible hypotheses
-    """
-    # fix dim of new_points
-    new_points = new_points[0, :, :]
-
-    # create list of new track numbers
-    max_track = max(kalman_tracks.keys()) + 1
-    lp = len(new_points)
-    track_numbers = np.arange(max_track, max_track + lp)
-
-    # get predictions of all tracks
-    predictions = dict()
-    for k in kalman_tracks:
-        predictions[k] = kalman_tracks[k].make_prediction(app=append_pred)
-
-    # create hypothesis table from covariance gating
-    hyp_table = []
-    for i in range(lp):
-        mn_hyp = [0]
-        for j in predictions:
-            if mah_gate(predictions[j], new_points[i], 10e4):
-                mn_hyp.append(j)
-
-        mn_hyp.append(track_numbers[i])
-        hyp_table.append(mn_hyp)
-
-    # create all possible combinations
-    combinations = [p for p in product(*hyp_table)]
-    perm_table = np.asarray(combinations).T
-
-    # remove impossible combinations
-    non_zero_duplicates = []
-    for i in range(len(perm_table[0])):
-        # if there is a duplicate in column i+1 of perm_table, the value is saved in dup
-        u, c = np.unique(perm_table[:, i], return_counts=True)
-        dup = u[c > 1]
-
-        # if there are non-zero duplicates, non_zero_duplicates gets a True, otherwise it gets a false
-        non_zero_duplicates.append(np.any(dup > 0))
-
-    hyp_possible = np.delete(perm_table, non_zero_duplicates, axis=1)
-
-    return hyp_possible
-
-
-def assign_hyp_to_tracks(tracks, hyp_table):
-    """
-    Function which takes the current tracks, and a hypothesis table,
-    and returns possible track assignments for each new data point
-    :param tracks: dictionary of all current tracks
-    :param hyp_table: hypothesis table (returned by create_hyp_table
-    :return: Returns a list of sets. Each index of the list corresponds to one of the new
-             data points. The set at each index indicates which track could be assigned to the new
-             data point.
-    """
-    # get all track keys, without 0
-    all_tracks = tracks.copy()
-    del all_tracks[0]
-    all_track_keys = list(all_tracks.keys())
-    num_points = hyp_table.shape[0]
-
-    # create a list where the first index saves possible tracks for the first point etc.
-    point_possible_tracks = [set() for i in range(num_points)]
-    for hyp in hyp_table.T:
-        for k in all_track_keys:
-            # check if a hypothesis implies a point belongs to a current track
-            _key_check = np.where(hyp == k)[0]
-            is_not_empty = _key_check.size != 0
-
-            if is_not_empty:
-                # add points to the tracks the hypothesis specifies
-                point_possible_tracks[_key_check[0]].add(hyp[_key_check[0]])
-
-    return point_possible_tracks
-
-
-def get_state_in_track(track, idx=None):
-    """
-    NOTE: use velocity_algo_pair, it's better (and more work)
-    Gets the state from a track. If idx is not given the functions uses
-    the lates points in track to generate a new state.
-    :param track: The track to get the state from
-    :param idx: Tuple containing 2 indeces (prev point, next point).
-    :return: returns a state vector [x, y, z, xdot, ydot, zdot]
-    """
-    if idx is None:
-        x1, x2 = track[-2], track[-1]
-        dt = x2[0] - x1[0]
-        dx = (x2[1:] - x1[1:]) / dt
-    else:
-        x1, x2 = track[idx[1]], track[idx[0]]
-        dt = x2[0] - x1[0]
-        dx = (x2[1:] - x1[1:]) / dt
-
-    state = np.hstack((x2[1:], dx))
-
-    return state
-
-
-# %% Data import and transformation
+# Data import -----------------------------------------------------------------
+# import data
 imports = ["snr50/truth1.txt", "snr50/truth2.txt", "nfft_15k/false.txt"]
 
-# slice data
 _data = []
 for i, file_ in enumerate(imports):
     _data.append(np.array(tr.import_data(file_)).T)
@@ -279,47 +180,11 @@ data_ = np.concatenate((data_, _data[2]))
 data = data_[data_[:, 0].argsort()]
 data = data[:12]
 
-# Convert to cartesian coordinates
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz)  # point sorted by time [t, x, y, z]
 
-# %% create track dicts
-# create initial track
-initial_track_keys = list(range(1, timesort_xyz[0].shape[1] + 1))
-track_all_points = {0: []}  # saving all tracks in a dict
-for i in range(len(initial_track_keys)):
-    _key = initial_track_keys[i]
-    _point = timesort_xyz[0][0, i]
-    track_all_points[_key] = [_point]
 
-# assume [{1}, {2}, set()] from assign_hyp_to_track is true
-track_all_points[1].append(timesort_xyz[1][0, 0])
-track_all_points[2].append(timesort_xyz[1][0, 1])
-
-# create a dictionary with states in tracks (contains one less point than the tracks dict)
-track_states = dict()
-state1 = get_state_in_track(track_all_points[1])
-state2 = get_state_in_track(track_all_points[2])
-
-# append states
-track_states[1] = [state1]
-track_states[2] = [state2]
-
-# %% create kalman dicts
-# start kalman filters
-s_u, s_w, m_init = np.eye(6), np.eye(6), np.eye(6) * 100
-track_filters = dict()
-
-# initialize kalman filters
-for k in track_states:
-    track_filters[k] = tr.KalmanMHT(s_u, s_w, m_init, track_states[k][0])
-
-# TESTING----------------------------------------------------------------------
-# %% Step 0: initialize alting
-init_hyp_table = create_init_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], track_all_points)
-
-# hyp1_table = create_init_hyp_table(timesort_xyz[0][0, :, 1:], timesort_xyz[1][0, :, 1:], track_all_points)
-# hyp_prob = Pik(hyp1_table)
-
-# assign_hyp_to_tracks(track_all_points, hyp1_table)
-# a = create_hyp_table(timesort_xyz[2], track_filters)
+# Testing the code ------------------------------------------------------------
+points0, points1 = timesort_xyz[0], timesort_xyz[1]
+hyp1, p1 = init_tracking(points0)
+_tester = iter_tracking(points0, points1, hyp1, [0], args=(12000, 10e4))
