@@ -2,14 +2,22 @@ import sys
 import os
 import numpy as np
 from itertools import product
+from scipy import special
 
 sys.path.insert(1, os.getcwd())
 import tracking as tr
 
-
 # Global variables ------------------------------------------------------------
+# how many tracks have been created
 total_tracks = 0
-mu = 3.986004418e14  # wiki "standard gravitational parameter"
+
+# wiki "standard gravitational parameter"
+mu = 3.986004418e14
+
+# Used in calculating hyp proba.
+snr = 50
+P_FA = np.exp(-10)
+P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
 
 
 # Intermediate functions ------------------------------------------------------
@@ -35,12 +43,92 @@ def __predict(m0, m1):
     # m_predict is a static size, and does not change with different states
     # this is a simplification, and is subject to change if the algorithm
     # does not work
-    dm1 = (m1[1:] - m0[1:])/dt
+    dm1 = (m1[1:] - m0[1:]) / dt
     x = np.hstack((m1[1:], dm1))
     x_predict = phi @ x
     m_predict = phi @ np.eye(6) @ phi.T + np.eye(6)
 
     return x_predict, m_predict
+
+
+def __N_pdf(mean, Sig_inv):
+    Sig = np.linalg.inv(Sig_inv)
+    n = len(Sig)
+    return (np.exp(-0.5 * (mean.T @ Sig_inv @ mean))) / \
+           (np.sqrt((2 * np.pi) ** n * np.linalg.norm(Sig)))
+
+
+def __beta_density(NFFT, n):
+    n_FA = NFFT * np.exp(-10)
+    beta_FT = n_FA / n
+    beta_NT = (n - n_FA) / n
+    return beta_FT, beta_NT
+
+
+def __Pik(H, c=1, P_g=1, P_D=0.2, NFFT=15000, y_t=None, y_t_hat=None, Sig_inv=None):
+    """
+    y_t is measurements at time t, where y_t_hat is a prediction at time t-1.
+    The calculation y_t[i]-y_t_hat[i] corresponds to the calculation in the
+    kalman gate. They are both 2d arrays with the same amount of rows and 3
+    columns. Sig_inv is the same cov matrix as the one from the gate and is a
+    3d array, e.g., np.array([np.eye(3),np.eye(3)]) in the case with 2 predic-
+    tions.
+
+    Parameters
+    ----------
+    H : Hypothesis matrix. len(columns)=amount of hypothesis, len(rows)= amount
+    of points
+    c : Scaling of probability. The default is 1.
+    P_g : Probability relating to prior points (only used if prior_info=True).
+    The default is 0.2.
+    P_D : Probability for detection. The default is 0.2.
+    prior_info : Boolian - if True then we have prior info, Talse otherwise.
+    The default is False.
+    y_t : Measurements at time t. The default is [].
+    y_t_hat : Predictions at time t. The default is [].
+    Sig_inv : Covariance matrix from Kalman. The default is [].
+
+    Returns
+    -------
+    prob : Array type of probabilities for each hypothesis
+
+    """
+
+    beta_FT, beta_NT = __beta_density(NFFT, len(H))
+    N_TGT = np.max(H) - len(H)  # Number of previously known targets
+
+    prob = np.zeros(len(H[0]))
+    for i, hyp in enumerate(H.T):
+        N_FT = np.count_nonzero(hyp == 0)  # Number of false
+        N_NT = np.count_nonzero(hyp >= N_TGT + 1)  # Number of known targets in hyp
+        N_DT = len(hyp) - N_FT - N_NT  # Number of prioer targets in given hyp
+
+        prob[i] = (1 / c) * (P_D ** N_DT * (1 - P_D) ** (N_TGT - N_DT) * beta_FT ** N_FT * beta_NT ** N_NT)
+
+        if N_DT >= 1 and y_t is not None:
+            product = 1
+            indecies = np.where((hyp <= N_TGT) & (hyp > 0))[0]
+            for j in indecies:
+                product *= __N_pdf(y_t[j] - y_t_hat[j], Sig_inv[j])
+
+            prob[i] *= product * P_g
+
+    prob_hyp = np.vstack((prob, H))
+
+    prob_hyp = prob_hyp.T[prob_hyp.T[:, 0].argsort()[::-1]].T
+
+    return prob_hyp
+
+
+def __prune(prob_hyp, th=0.1, N_h=10000):
+    cut_index = np.min(np.where(prob_hyp[0] < th))
+
+    pruned_hyp = prob_hyp[:, :cut_index]
+
+    if len(pruned_hyp[0]) >= N_h:
+        pruned_hyp = pruned_hyp[:, :N_h]
+
+    return pruned_hyp
 
 
 # Main Functions --------------------------------------------------------------
@@ -65,6 +153,9 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
     vmax = max velocity of satellite, used for simple gating
     threshold = threshold for the "mahalanobis" norm
 
+    Det er ikke en rigtig mahalanobis norm, da vores estimat af variancen er
+    litteral trash
+
     """
     # Keep track (haha) of the numbering of new tracks
 
@@ -86,15 +177,18 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
                 new_track = not bool(hyp_table[1, row, col])
                 if new_track:
                     # Simple gate for new tracks
-                    dt = np.abs(m1[0]-s0[row][0])
+                    dt = np.abs(m1[0] - s0[row][0])
                     vmax = args[0]
                     d_dist = m1[1:] - s0[row][1:]
                     if np.linalg.norm(d_dist) <= vmax * dt:
                         mn_hyp.append(hyp_table[0, row, col])
                 else:
-                    # Mahalanobis gating (not really though)
-                    # predictions must be tupe of 2 lists (x, m)
-                    x, m = predictions[0][row], predictions[1][row]
+                    # Mahalanobis gating (not really though), see docstring.
+                    # predictions must be a dictionary with the keys
+                    # representing the tracks (x, m)
+                    track_num = hyp_table[0, row, col]
+                    x = predictions[track_num][0][0][3:]
+                    m = predictions[track_num][0][1][3:, 3:]
                     d = (x - m1[1:]).T @ np.linalg.inv(m) @ (x - m1[1:])
                     threshold = args[1]
                     if d < threshold:
@@ -121,20 +215,46 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
     # create array of possible hypotheses
     hyp_possible = np.delete(perm_table, non_zero_duplicates, axis=1)
 
-    # add an array which indicates which tracks are new and which are old
-    new_track_indc = np.zeros_like(hyp_possible)
-    predictions = []
+    # create a matrix which stores the predictions sorted by point index
+    # this is used when calling the PiK function
+    prediction_keys = list(predictions.keys())
+    nonsorted_predictions = np.zeros((len(prediction_keys), 4))
+    for i, k in enumerate(prediction_keys):
+        _idx = predictions[k][1]
+        _x = predictions[k][0][0][0]
+        _y = predictions[k][0][0][1]
+        _z = predictions[k][0][0][2]
 
-    for col in range(len(hyp_possible[0, :])):
-        for row in range(len(hyp_possible[:, 0])):
+        nonsorted_predictions[i, 0] = _idx
+        nonsorted_predictions[i, 1] = _x
+        nonsorted_predictions[i, 2] = _y
+        nonsorted_predictions[i, 3] = _z
+
+    # Sort by first column (point index) of the matrix
+    sorted_predictions = nonsorted_predictions[nonsorted_predictions[:, 0].argsort()]
+    if len(prediction_keys) > 0:
+        probability_hyp_table = __Pik(hyp_possible, y_t=s1, y_t_hat=sorted_predictions[:, 1:])
+    else:
+        probability_hyp_table = __Pik(hyp_possible,P_D=P_D)
+
+    # Prune the hypothesis table
+    _pruned_table = __prune(probability_hyp_table)
+    pruned_probabilities = _pruned_table[1:]
+    pruned_table = _pruned_table[1:]
+    # add an array which indicates which tracks are new and which are old
+    new_track_indc = np.zeros_like(pruned_table)
+    predictions1 = dict()
+
+    for col in range(len(pruned_table[0, :])):
+        for row in range(len(pruned_table[:, 0])):
             # check if the track is not a new one
             # and if the track is not 0
-            condition_1 = hyp_possible[row, col] not in new_track_numbers
-            condition_2 = hyp_possible[row, col] != 0
+            condition_1 = pruned_table[row, col] not in new_track_numbers
+            condition_2 = pruned_table[row, col] != 0
             if condition_1 and condition_2:
                 # indicate that this entry is part of an old track
                 new_track_indc[row, col] = 1
-                track_num = hyp_possible[row, col]
+                track_num = pruned_table[row, col]
                 # create a prediction for this entry
                 """
                 NOTE:
@@ -147,19 +267,15 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
                 Only the first instance where the track is found in the
                 old track is use to create predictions
                 """
-                idx_track = np.where(hyp_table == track_num)[0]
+                idx_track = np.where(hyp_table[0] == track_num)[0]
                 old_point = s0[idx_track[0]]
 
                 prediction = __predict(old_point, s1[row])
-                predictions.append(prediction)
-                """
-                TODO:
-                find out how to save predictions, such that the gating can be
-                done on the right points.
-                """
+                predictions1[track_num] = (prediction, row)
 
-    return predictions
+    final_table = np.stack((pruned_table, new_track_indc))
 
+    return s1, final_table, predictions1
 
 
 # Data import -----------------------------------------------------------------
@@ -183,8 +299,26 @@ data = data[:12]
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz)  # point sorted by time [t, x, y, z]
 
-
 # Testing the code ------------------------------------------------------------
-points0, points1 = timesort_xyz[0], timesort_xyz[1]
-hyp1, p1 = init_tracking(points0)
-_tester = iter_tracking(points0, points1, hyp1, [0], args=(12000, 10e4))
+# initial points n shit
+old_points = timesort_xyz.pop(0)
+old_hyp, s1 = init_tracking(old_points)
+new_predicts = dict()
+
+# saving the results
+results = []
+new_points = timesort_xyz[0]
+for i in range(len(timesort_xyz)):
+    new_points = timesort_xyz[i]
+    iter_results = iter_tracking(old_points, new_points, old_hyp, new_predicts, args=(12000, 10e4))
+    old_points = iter_results[0]
+    old_hyp = iter_results[1]
+    new_predicts = iter_results[2]
+
+    results.append(iter_results)
+
+print("==========================================")
+print("Tables:")
+for i in range(len(results)):
+    print(results[i][1][0])
+print("==========================================")
