@@ -226,7 +226,8 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
     # permutate the hypothesis table
     combinations = [p for p in product(*new_table)]
     perm_table = np.asarray(combinations).T
-
+    print(new_table)
+    print(perm_table)
     # remove impossible combinations
     non_zero_duplicates = []
     for i in range(len(perm_table[0])):
@@ -240,30 +241,7 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
     # create array of possible hypotheses
     hyp_possible = np.delete(perm_table, non_zero_duplicates, axis=1)
 
-    # create a matrix which stores the predictions sorted by point index
-    # this is used when calling the PiK function
-    prediction_keys = list(predictions.keys())
-    nonsorted_predictions = np.zeros((len(prediction_keys), 4))
-    nonsorted_m_cov = np.zeros((len(prediction_keys),3,3))
-    for i, k in enumerate(prediction_keys):
-        _idx = predictions[k][1]
-        _x = predictions[k][0][0][0]
-        _y = predictions[k][0][0][1]
-        _z = predictions[k][0][0][2]
-
-        nonsorted_m_cov = predictions[k][0][1][:3,:3]
-        
-
-        nonsorted_predictions[i, 0] = _idx
-        nonsorted_predictions[i, 1] = _x
-        nonsorted_predictions[i, 2] = _y
-        nonsorted_predictions[i, 3] = _z
-    
-    nonsorted_m_cov = np.linalg.inv(nonsorted_m_cov)
-    # Sort by first column (point index) of the matrix
-    sorted_predictions = nonsorted_predictions[nonsorted_predictions[:, 0].argsort()]
-
-    if len(prediction_keys) > 0:
+    if len(kalman_info_all) > 0:
         probability_hyp_table = __Pik(hyp_possible, kal_info=kalman_info_all, P_D=P_D)
     else:
         probability_hyp_table = __Pik(hyp_possible, P_D=P_D)
