@@ -133,7 +133,7 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
     return prob_hyp
 
 
-def __prune(prob_hyp, th=0.01, N_h=10000):
+def __prune(prob_hyp, th=0.1, N_h=100000):
     cut_index = np.min(np.where(prob_hyp[0] < th))
 
     pruned_hyp = prob_hyp[:, :cut_index]
@@ -222,12 +222,18 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
         new_table.append(mn_hyp)
     #if len(kalman_info_all) > 0:
     #    print(kalman_info_all)
-    #print(kalman_info_all)
+
+    new_tab_remove_doubles = []
+    for i in range(len(new_table)):
+        new_tab_remove_doubles.append(list(set(new_table[i])))
+    
+    new_table = new_tab_remove_doubles
+    #print(new_table)
+    
     # permutate the hypothesis table
     combinations = [p for p in product(*new_table)]
     perm_table = np.asarray(combinations).T
-    print(new_table)
-    print(perm_table)
+
     # remove impossible combinations
     non_zero_duplicates = []
     for i in range(len(perm_table[0])):
@@ -240,13 +246,14 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
 
     # create array of possible hypotheses
     hyp_possible = np.delete(perm_table, non_zero_duplicates, axis=1)
+        
+    #print(hyp_possible)
 
     if len(kalman_info_all) > 0:
         probability_hyp_table = __Pik(hyp_possible, kal_info=kalman_info_all, P_D=P_D)
     else:
         probability_hyp_table = __Pik(hyp_possible, P_D=P_D)
     
-
     # Prune the hypothesis table
     #print(probability_hyp_table)
     _pruned_table = __prune(probability_hyp_table)
@@ -307,7 +314,7 @@ for i, file_ in enumerate(imports):
 data_ = np.concatenate((_data[0], _data[1]))
 data_ = np.concatenate((data_, _data[2]))
 data = data_[data_[:, 0].argsort()]
-data = data[:12]
+data = data[:100]
 
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz)  # point sorted by time [t, x, y, z]
