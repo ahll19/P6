@@ -57,7 +57,7 @@ def __N_pdf(mean, Sig_inv):
     part1 = np.exp(-0.5 * mean.T @ Sig_inv @ mean)
     part2 = np.sqrt((2 * np.pi) ** n * np.abs(np.linalg.det(Sig)))
 
-    return 1#(part1) / (part2)
+    return 20#(part1) / (part2)
 
 
 def __beta_density(NFFT, n):
@@ -106,7 +106,7 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
         N_DT = len(hyp) - N_FT - N_NT  # Number of prioer targets in given hyp
 
         prob[i] = (P_D ** N_DT * (1 - P_D) ** (N_TGT - N_DT) * beta_FT ** N_FT * beta_NT ** N_NT)
-        #print("Hej")
+        prob[i] += 1e-10
         if kal_info is not None and N_DT >= 1:
             product = 1
             y_t, y_hat_t, Sig_inv = 0,0,0
@@ -116,10 +116,10 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
                     continue
                 b = b[0][0]
                 
-                #print(b)
                 y_t, y_hat_t, Sig_inv = kal_info[b][1:]
 
                 product *= __N_pdf(y_t - y_hat_t, Sig_inv)
+                #print(product,prob[i])
 
             prob[i] *= product * P_g
             
@@ -129,19 +129,24 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
     prob_hyp = prob_hyp.T[prob_hyp.T[:, 0].argsort()[::-1]].T
     
     prob_hyp[0] = prob_hyp[0]/sum(prob_hyp[0])
-    
+    #print(prob_hyp[0])
     return prob_hyp
 
 
-def __prune(prob_hyp, th=0.1, N_h=100000):
-    cut_index = np.min(np.where(prob_hyp[0] < th))
-
-    pruned_hyp = prob_hyp[:, :cut_index]
-
-    if len(pruned_hyp[0]) >= N_h:
-        pruned_hyp = pruned_hyp[:, :N_h]
-
-    return pruned_hyp
+def __prune(prob_hyp, th=0.1, N_h=5):
+    if len(np.where(prob_hyp[0] < th)[0]) > 0:
+        cut_index = np.min(np.where(prob_hyp[0] < th))
+    
+        pruned_hyp = prob_hyp[:, :cut_index]
+    
+        if len(pruned_hyp[0]) >= N_h:
+            pruned_hyp = pruned_hyp[:, :N_h]
+    
+        return pruned_hyp
+    else:
+        if len(prob_hyp[0]) >= N_h:
+            prob_hyp = prob_hyp[:, :N_h]
+        return prob_hyp
 
 
 # Main Functions --------------------------------------------------------------
@@ -197,7 +202,7 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
                     d_dist = m1[1:] - s0[row][1:]
                     if np.linalg.norm(d_dist) <= vmax * dt:
                         mn_hyp.append(hyp_table[0, row, col])
-                        #print("init")
+
                 else:
                     # Mahalanobis gating (not really though), see docstring.
                     # predictions must be a dictionary with the keys
@@ -220,15 +225,12 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
         # save the potential of new track in the hypothesis
         mn_hyp.append(new_track_numbers[i])
         new_table.append(mn_hyp)
-    #if len(kalman_info_all) > 0:
-    #    print(kalman_info_all)
 
     new_tab_remove_doubles = []
     for i in range(len(new_table)):
         new_tab_remove_doubles.append(list(set(new_table[i])))
     
     new_table = new_tab_remove_doubles
-    #print(new_table)
     
     # permutate the hypothesis table
     combinations = [p for p in product(*new_table)]
@@ -247,7 +249,6 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
     # create array of possible hypotheses
     hyp_possible = np.delete(perm_table, non_zero_duplicates, axis=1)
         
-    #print(hyp_possible)
 
     if len(kalman_info_all) > 0:
         probability_hyp_table = __Pik(hyp_possible, kal_info=kalman_info_all, P_D=P_D)
@@ -255,7 +256,6 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
         probability_hyp_table = __Pik(hyp_possible, P_D=P_D)
     
     # Prune the hypothesis table
-    #print(probability_hyp_table)
     _pruned_table = __prune(probability_hyp_table)
     pruned_probabilities = _pruned_table[0]
     pruned_table = _pruned_table[1:]
@@ -291,7 +291,6 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
 
                 prediction = __predict(old_point, s1[row])
                 predictions1[track_num] = (prediction, row)
-                #print(predictions1)
 
     final_table = np.stack((pruned_table, new_track_indc))
 
@@ -314,7 +313,7 @@ for i, file_ in enumerate(imports):
 data_ = np.concatenate((_data[0], _data[1]))
 data_ = np.concatenate((data_, _data[2]))
 data = data_[data_[:, 0].argsort()]
-data = data[:100]
+data = data[:]
 
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz)  # point sorted by time [t, x, y, z]
@@ -328,6 +327,27 @@ new_predicts = dict()
 # saving the results
 results = []
 new_points = timesort_xyz[0]
+
+track1 = np.zeros((len(timesort_xyz)-1,3))
+track2 = np.zeros((len(timesort_xyz)-1,3))
+for i in range(len(timesort_xyz)):
+    new_points = timesort_xyz[i]
+    iter_results = iter_tracking(
+        old_points, new_points, old_hyp, new_predicts, args=(12000, 10e6))
+    old_points = iter_results[0]
+    old_hyp = iter_results[1]
+    new_predicts = iter_results[2]
+    # print(new_predicts)
+
+    results.append(iter_results)
+    most_likely_hyp = iter_results[1][0][:, 0]
+    for k, t in enumerate(most_likely_hyp):
+        if t == 1:
+            track1[i] += timesort_xyz[i][int(k)][1:]
+        if t == 2:
+            track2[i] += timesort_xyz[i][int(k)][1:]
+
+'''
 for i in range(len(timesort_xyz)):
     print(i)
     new_points = timesort_xyz[i]
@@ -338,7 +358,7 @@ for i in range(len(timesort_xyz)):
     #print(new_predicts)
 
     results.append(iter_results)
-
+'''
 print("==========================================")
 print("Tables:")
 for i in range(len(results)):
