@@ -3,6 +3,7 @@ import os
 import numpy as np
 from itertools import product
 from scipy import special
+import matplotlib.pyplot as plt
 
 sys.path.insert(1, os.getcwd())
 import tracking as tr
@@ -305,10 +306,6 @@ _data = []
 for i, file_ in enumerate(imports):
     _data.append(np.array(tr.import_data(file_)).T)
 
-    if i == 0:
-        _data[0][:, 0] = np.array(_data[0][:, 0]) - 5
-    if i == 2:
-        _data[2][:, 0] = np.array(_data[2][:, 0]) + 5
 
 data_ = np.concatenate((_data[0], _data[1]))
 data_ = np.concatenate((data_, _data[2]))
@@ -364,3 +361,6 @@ print("Tables:")
 for i in range(len(results)):
     print(results[i][1][0])
 print("==========================================")
+
+plt.scatter(track1[:,1], track1[:,2])
+plt.scatter(track2[:,1], track2[:,2])
