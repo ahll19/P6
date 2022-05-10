@@ -323,15 +323,14 @@ class KalmanGating:
         self.filter_length += 1
 
 
-def run_sim(test_num):
+def run_sim(test_num, plot=True, gate_count=True, mse=True):
     data, sep_data, test_name = get_data(test_num)
     if len(data[0]) == 1 and len(data[1]) == 1:
-        init_x = data[0].reshape(4,)
-        x_1 = data[1].reshape(4,)
+        init_x = data[0].reshape(4, )
+        x_1 = data[1].reshape(4, )
     else:
-        init_x = data[0][0].reshape(4,)
-        x_1 = data[1][0].reshape(4,)
-
+        init_x = data[0][0].reshape(4, )
+        x_1 = data[1][0].reshape(4, )
 
     mults = [1, 1, 1]
     s_u, s_w, m_init = np.eye(6) * mults[0], np.eye(6) * mults[1], np.eye(6) * mults[2]
@@ -344,61 +343,95 @@ def run_sim(test_num):
         point = kalman.gate(data[i])
         kalman.observation(point)
 
-    # plot the chaos
     t1, exact_values = np.array(kalman.points)[:, 0], np.array(kalman.points)[:, 1:]
     t2, corrections = t1[1:], np.array(kalman.states_corr)[:, :3]
 
-    plt.plot(t2, corrections[:, 0], c='r', zorder=3, lw=0.3, label="Estimated track")
-    plt.scatter(sep_data[0][:, 0], sep_data[0][:, 1], marker=".", c='b',
-                zorder=2, label="True detections")
-    plt.scatter(sep_data[1][:, 0], sep_data[1][:, 1], marker="x", c='k',
-                alpha=0.5,s=0.5, zorder=1, label="False detections")
-    plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-    plt.xlabel(r"$t\ [s]$")
-    plt.ylabel(r"$r_x\ [m]$")
-    plt.title("x - "+test_name)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("test3_figs/x_"+test_name.strip()+".pdf")
-    plt.show()
+    if plot:
+        # plot the chaos
+        plt.plot(t2, corrections[:, 0], c='r', zorder=3, lw=0.3, label="Estimated track")
+        plt.scatter(sep_data[0][:, 0], sep_data[0][:, 1], marker=".", c='b',
+                    zorder=2, label="True detections")
+        plt.scatter(sep_data[1][:, 0], sep_data[1][:, 1], marker="x", c='k',
+                    alpha=0.5, s=0.5, zorder=1, label="False detections")
+        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        plt.xlabel(r"$t\ [s]$")
+        plt.ylabel(r"$r_x\ [m]$")
+        plt.title("x - " + test_name)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("test3_figs/x_" + test_name.strip() + ".pdf")
+        plt.show()
 
-    plt.plot(t2, corrections[:, 1], c='r', zorder=3, lw=0.3, label="Estimated track")
-    plt.scatter(sep_data[0][:, 0], sep_data[0][:, 2], marker=".", c='b',
-                zorder=2, label="True detections")
-    plt.scatter(sep_data[1][:, 0], sep_data[1][:, 2], marker="x", c='k',
-                alpha=0.5,s=0.5, zorder=1, label="False detections")
-    plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-    plt.xlabel(r"$t\ [s]$")
-    plt.ylabel(r"$r_y\ [m]$")
-    plt.title("y - "+test_name)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("test3_figs/y_"+test_name.strip()+".pdf")
-    plt.show()
+        plt.plot(t2, corrections[:, 1], c='r', zorder=3, lw=0.3, label="Estimated track")
+        plt.scatter(sep_data[0][:, 0], sep_data[0][:, 2], marker=".", c='b',
+                    zorder=2, label="True detections")
+        plt.scatter(sep_data[1][:, 0], sep_data[1][:, 2], marker="x", c='k',
+                    alpha=0.5, s=0.5, zorder=1, label="False detections")
+        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        plt.xlabel(r"$t\ [s]$")
+        plt.ylabel(r"$r_y\ [m]$")
+        plt.title("y - " + test_name)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("test3_figs/y_" + test_name.strip() + ".pdf")
+        plt.show()
 
-    plt.plot(t2, corrections[:, 2], c='r', zorder=3, lw=0.3, label="Estimated track")
-    plt.scatter(sep_data[0][:, 0], sep_data[0][:, 3], marker=".", c='b',
-                zorder=2, label="True detections")
-    plt.scatter(sep_data[1][:, 0], sep_data[1][:, 3], marker="x", c='k',
-                alpha=0.5,s=0.5, zorder=1, label="False detections")
-    plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-    plt.xlabel(r"$t\ [s]$")
-    plt.ylabel(r"$r_z\ [m]$")
-    plt.title("z - "+test_name)
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig("test3_figs/z_"+test_name.strip()+".pdf")
-    plt.show()
+        plt.plot(t2, corrections[:, 2], c='r', zorder=3, lw=0.3, label="Estimated track")
+        plt.scatter(sep_data[0][:, 0], sep_data[0][:, 3], marker=".", c='b',
+                    zorder=2, label="True detections")
+        plt.scatter(sep_data[1][:, 0], sep_data[1][:, 3], marker="x", c='k',
+                    alpha=0.5, s=0.5, zorder=1, label="False detections")
+        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        plt.xlabel(r"$t\ [s]$")
+        plt.ylabel(r"$r_z\ [m]$")
+        plt.title("z - " + test_name)
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig("test3_figs/z_" + test_name.strip() + ".pdf")
+        plt.show()
+        print("Saved plots")
 
-    # print("Number of gate misses: ", kalman.num_gate_misees)
-    # print("Number of 1 in gate: ", kalman.num_gate_ones)
-    # print("Number of gate multiples: ", kalman.num_gate_multiples)
-    # with open('test2/snr10_MSE.txt', "w") as myfile:
-    #     myfile.write(mse_string_10)
+    if gate_count:
+        miss_str = "Number of gate misses: " + str(kalman.num_gate_misees) + "\n"
+        one_str = "Number of 1 in gate: " + str(kalman.num_gate_ones) + "\n"
+        mult_str = "Number of gate multiples: " + str(kalman.num_gate_multiples) + "\n"
+        open_str = 'test3_results/' + test_name.strip() + "gate_count"
+        with open(open_str, "w") as myfile:
+            save_str = miss_str + one_str + mult_str
+            myfile.write(save_str)
+        print("Saved gate counts")
+
+    if mse:
+        # The MSE is only calculated for the points at which te detections are acutally there
+        # that means that the MSE is not taking the indeces where only noise is present into consideration
+        detect = sep_data[0]
+        t_detect = np.round(detect[:, 0]*10)
+
+        square_errors = []
+        for i, t in enumerate(t2):
+            _t = np.round(t*10)
+            app = np.where(_t == t_detect)[0]
+            if len(app) == 1:
+                idx = int(app)
+
+                x_diff = corrections[i, 0] - detect[idx, 1]
+                y_diff = corrections[i, 1] - detect[idx, 2]
+                z_diff = corrections[i, 2] - detect[idx, 3]
+
+                square_error = x_diff**2 + y_diff**2 + z_diff**2
+                square_errors.append(square_error)
+
+        MSE = sum(square_errors)/len(square_errors)
+
+        with open("test3_results/MSE_" + test_name.strip(), "w") as myfile:
+            myfile.write(str(MSE))
+            print("Saved MSE")
+
+    print("Test number ", test_num, " is done!")
 
 
 if __name__ == "__main__":
     for i in range(30):
         print("=================================\n")
-        run_sim(i)
+        run_sim(i, gate_count=True, plot=True, mse=True)
         print("=================================\n")

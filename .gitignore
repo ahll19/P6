@@ -139,3 +139,5 @@ Bøger/**
 *.lock
 
 *.icloud
+
+tracking/test3_results/
