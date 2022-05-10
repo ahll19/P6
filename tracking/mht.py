@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 sys.path.insert(1, os.getcwd())
 import tracking as tr
+from kalman_help_me import KalmanGating
 
 # Global variables ------------------------------------------------------------
 # how many tracks have been created
@@ -57,8 +58,8 @@ def __N_pdf(mean, Sig_inv):
     n = len(Sig)
     part1 = np.exp(-0.5 * mean.T @ Sig_inv @ mean)
     part2 = np.sqrt((2 * np.pi) ** n * np.abs(np.linalg.det(Sig)))
-
-    return 20#(part1) / (part2)
+    
+    return 3#(part1) / (part2)
 
 
 def __beta_density(NFFT, n):
@@ -81,15 +82,11 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
     ----------
     H : Hypothesis matrix. len(columns)=amount of hypothesis, len(rows)= amount
     of points
-    c : Scaling of probability. The default is 1.
     P_g : Probability relating to prior points (only used if prior_info=True).
     The default is 0.2.
     P_D : Probability for detection. The default is 0.2.
-    prior_info : Boolian - if True then we have prior info, Talse otherwise.
-    The default is False.
-    y_t : Measurements at time t. The default is [].
-    y_t_hat : Predictions at time t. The default is [].
-    Sig_inv : Covariance matrix from Kalman. The default is [].
+    NFFT : An input from matlab code used in the normal distribution pdf.
+    kal_info : Consists of a list with a tuple 
 
     Returns
     -------
@@ -113,6 +110,7 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
             y_t, y_hat_t, Sig_inv = 0,0,0
             for j,item in enumerate(hyp):
                 b = [(k, kal_info.index((j,item))) for k, kal_info in enumerate(kal_info) if (j,item) in kal_info]
+                
                 if len(b) == 0:
                     continue
                 b = b[0][0]
@@ -120,7 +118,6 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
                 y_t, y_hat_t, Sig_inv = kal_info[b][1:]
 
                 product *= __N_pdf(y_t - y_hat_t, Sig_inv)
-                #print(product,prob[i])
 
             prob[i] *= product * P_g
             
@@ -130,15 +127,19 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
     prob_hyp = prob_hyp.T[prob_hyp.T[:, 0].argsort()[::-1]].T
     
     prob_hyp[0] = prob_hyp[0]/sum(prob_hyp[0])
-    #print(prob_hyp[0])
+
     return prob_hyp
 
 
 def __prune(prob_hyp, th=0.1, N_h=5):
     if len(np.where(prob_hyp[0] < th)[0]) > 0:
         cut_index = np.min(np.where(prob_hyp[0] < th))
-    
-        pruned_hyp = prob_hyp[:, :cut_index]
+        
+        # cut off unlikely hyp, but keep at least one
+        if len(prob_hyp[0]) != len(prob_hyp[0])-cut_index:
+            pruned_hyp = prob_hyp[:, :cut_index]
+        else:
+            pruned_hyp = prob_hyp[:, :1]
     
         if len(pruned_hyp[0]) >= N_h:
             pruned_hyp = pruned_hyp[:, :N_h]
@@ -164,7 +165,7 @@ def init_tracking(init_point):
     return hyp_table, init_point
 
 
-def iter_tracking(s0, s1, hyp_table, predictions, args=None):
+def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
     """
     Do some cool stuff
 
@@ -209,13 +210,18 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
                     # predictions must be a dictionary with the keys
                     # representing the tracks (x, m)
                     track_num = hyp_table[0, row, col]
-                    x = predictions[track_num][0][0][:3]
                     
+                    track_points = tracks[f'{int(track_num)}']
+                    init_guess = track_points[0]
+                    m_guess = np.eye(6)
+                    
+                    
+                    
+                    x = predictions[track_num][0][0][:3]
                     
                     m = predictions[track_num][0][1][:3, :3]
                     d = (x - m1[1:]).T @ np.linalg.inv(m) @ (x - m1[1:])
                     threshold = args[1]
-                    
                     
                     if d < threshold:
                         mn_hyp.append(hyp_table[0, row, col])
@@ -300,7 +306,7 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None):
 
 # Data import -----------------------------------------------------------------
 # import data
-imports = ["snr50/truth1.txt", "snr50/truth2.txt", "nfft_15k/false.txt"]
+imports = ["snr50/truth1.txt", "snr50/truth2.txt", "snr50/truth3.txt", "nfft_15k/false.txt"]
 
 _data = []
 for i, file_ in enumerate(imports):
@@ -309,11 +315,12 @@ for i, file_ in enumerate(imports):
 
 data_ = np.concatenate((_data[0], _data[1]))
 data_ = np.concatenate((data_, _data[2]))
+data_ = np.concatenate((data_, _data[3]))
 data = data_[data_[:, 0].argsort()]
 data = data[:]
 
 time_xyz = tr.conversion(data)
-timesort_xyz = tr.time_slice(time_xyz)  # point sorted by time [t, x, y, z]
+timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
 
 # Testing the code ------------------------------------------------------------
 # initial points n shit
@@ -325,25 +332,29 @@ new_predicts = dict()
 results = []
 new_points = timesort_xyz[0]
 
-track1 = np.zeros((len(timesort_xyz)-1,3))
-track2 = np.zeros((len(timesort_xyz)-1,3))
+tracks = {}
+for i in range(0,len(time_xyz)+1):
+    tracks[str(i)] = []
+#%%
+M = 10
 for i in range(len(timesort_xyz)):
     new_points = timesort_xyz[i]
     iter_results = iter_tracking(
-        old_points, new_points, old_hyp, new_predicts, args=(12000, 10e6))
+        old_points, new_points, old_hyp, new_predicts, args=(12000, 10e6),tracks=tracks)
     old_points = iter_results[0]
     old_hyp = iter_results[1]
     new_predicts = iter_results[2]
-    # print(new_predicts)
 
     results.append(iter_results)
     most_likely_hyp = iter_results[1][0][:, 0]
     for k, t in enumerate(most_likely_hyp):
-        if t == 1:
-            track1[i] += timesort_xyz[i][int(k)][1:]
-        if t == 2:
-            track2[i] += timesort_xyz[i][int(k)][1:]
+        tracks[str(int(t))].append(timesort_xyz[i][int(k)][1:])
+        #if len(tracks[str(t)]) % M == 0:
 
+    
+
+plt.scatter(data[:,0],data[:,1])
+plt.show()
 '''
 for i in range(len(timesort_xyz)):
     print(i)
@@ -358,9 +369,12 @@ for i in range(len(timesort_xyz)):
 '''
 print("==========================================")
 print("Tables:")
-for i in range(len(results)):
-    print(results[i][1][0])
+#for i in range(len(results)):
+#    print(results[i][1][0])
 print("==========================================")
-
-plt.scatter(track1[:,1], track1[:,2])
-plt.scatter(track2[:,1], track2[:,2])
+#%%
+for i in range(1, len(time_xyz)):
+    if len(tracks[str(i)]) >= 2:
+        plt.scatter(np.array(tracks[str(i)])[:,1], np.array(tracks[str(i)])[:,2])
+        
+        
