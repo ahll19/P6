@@ -1,79 +1,90 @@
-"""
-Notes:
-    - Assume that the Kalman filter starts with a know point.
-      Meaning that we know that the point corrosponds to a
-      true detection of the satellite.
-    - Mahalanobis normen er lidt fucky-wucky
-"""
-# %% Imports
 import sys
 import os
 import numpy as np
-from itertools import product
-from scipy import special
 import matplotlib.pyplot as plt
 
 sys.path.insert(1, os.getcwd())
 import tracking as tr
 
 
-def noisy():
-    # imports = ["snr10/truth1.txt", "snr10/truth2.txt", "snr10/truth3.txt", "snr10/truth4.txt", "snr10/truth5.txt", "nfft_15k/false.txt"]
-    imports = ["snr20/truth1.txt", "snr20/truth2.txt", "snr20/truth3.txt", "snr20/truth4.txt", "snr20/truth5.txt", "nfft_15k/false.txt"]
-    # imports = ["snr10/truth1.txt", "snr10/truth2.txt", "snr10/truth3.txt", "snr10/truth4.txt", "snr10/truth5.txt", "nfft_15k/false.txt"]
-    # imports = ["snr50/truth1.txt", "snr50/truth4.txt", "nfft_15k/false.txt"]
+def get_data(test_num):
+    imports = [
+        ["snr10/truth1.txt", "nfft_15k/false.txt"],
+        ["snr10/truth2.txt", "nfft_15k/false.txt"],
+        ["snr10/truth3.txt", "nfft_15k/false.txt"],
+        ["snr10/truth4.txt", "nfft_15k/false.txt"],
+        ["snr10/truth5.txt", "nfft_15k/false.txt"],
+        ["snr20/truth1.txt", "nfft_15k/false.txt"],
+        ["snr20/truth2.txt", "nfft_15k/false.txt"],
+        ["snr20/truth3.txt", "nfft_15k/false.txt"],
+        ["snr20/truth4.txt", "nfft_15k/false.txt"],
+        ["snr20/truth5.txt", "nfft_15k/false.txt"],
+        ["snr50/truth1.txt", "nfft_15k/false.txt"],
+        ["snr50/truth2.txt", "nfft_15k/false.txt"],
+        ["snr50/truth3.txt", "nfft_15k/false.txt"],
+        ["snr50/truth4.txt", "nfft_15k/false.txt"],
+        ["snr50/truth5.txt", "nfft_15k/false.txt"],
+        ["snr10/truth1.txt", "nfft_50k/false.txt"],
+        ["snr10/truth2.txt", "nfft_50k/false.txt"],
+        ["snr10/truth3.txt", "nfft_50k/false.txt"],
+        ["snr10/truth4.txt", "nfft_50k/false.txt"],
+        ["snr10/truth5.txt", "nfft_50k/false.txt"],
+        ["snr20/truth1.txt", "nfft_50k/false.txt"],
+        ["snr20/truth2.txt", "nfft_50k/false.txt"],
+        ["snr20/truth3.txt", "nfft_50k/false.txt"],
+        ["snr20/truth4.txt", "nfft_50k/false.txt"],
+        ["snr20/truth5.txt", "nfft_50k/false.txt"],
+        ["snr50/truth1.txt", "nfft_50k/false.txt"],
+        ["snr50/truth2.txt", "nfft_50k/false.txt"],
+        ["snr50/truth3.txt", "nfft_50k/false.txt"],
+        ["snr50/truth4.txt", "nfft_50k/false.txt"],
+        ["snr50/truth5.txt", "nfft_50k/false.txt"],
+    ]
+    test_names = [
+        "sat1 snr10 nfft15k",
+        "sat2 snr10 nfft15k",
+        "sat3 snr10 nfft15k",
+        "sat4 snr10 nfft15k",
+        "sat5 snr10 nfft15k",
+        "sat1 snr20 nfft15k",
+        "sat2 snr20 nfft15k",
+        "sat3 snr20 nfft15k",
+        "sat4 snr20 nfft15k",
+        "sat5 snr20 nfft15k",
+        "sat1 snr50 nfft15k",
+        "sat2 snr50 nfft15k",
+        "sat3 snr50 nfft15k",
+        "sat4 snr50 nfft15k",
+        "sat5 snr50 nfft15k",
+        "sat1 snr10 nfft50k",
+        "sat2 snr10 nfft50k",
+        "sat3 snr10 nfft50k",
+        "sat4 snr10 nfft50k",
+        "sat5 snr10 nfft50k",
+        "sat1 snr20 nfft50k",
+        "sat2 snr20 nfft50k",
+        "sat3 snr20 nfft50k",
+        "sat4 snr20 nfft50k",
+        "sat5 snr20 nfft50k",
+        "sat1 snr50 nfft50k",
+        "sat2 snr50 nfft50k",
+        "sat3 snr50 nfft50k",
+        "sat4 snr50 nfft50k",
+        "sat5 snr50 nfft50k"
+    ]
 
     _data = []
     big_list = []
-    for i, file_ in enumerate(imports):
+    for i, file_ in enumerate(imports[test_num]):
         _data.append(np.array(tr.import_data(file_)).T)
         _dat = np.array(tr.import_data(file_)).T
         _dat = tr.conversion(_dat)
         big_list.append(_dat)
 
     data_ = np.concatenate((_data[0], _data[1]))
-    # data_ = np.concatenate((data_, _data[2]))
-    # data_ = np.concatenate((data_, _data[3]))
-    # data_ = np.concatenate((data_, _data[4]))
-    # data_ = np.concatenate((data_, _data[5]))
     data = tr.conversion(data_[data_[:, 0].argsort()])
 
-    return tr.time_slice(data), big_list
-
-
-def clean():
-    data = tr.import_data("snr50/truth1.txt")
-    data = np.array(data).T
-    data[:, 0] -= 5
-    data = tr.conversion(data)
-
-    return tr.time_slice(data)
-
-
-def useless_plot(data):
-    track1 = np.array([dat[0] for dat in data])
-    track2 = np.array([dat[1] for dat in data])
-    track3 = np.array([dat[2] for dat in data])
-
-    plt.scatter(track1[:, 0], track1[:, 1], c='r')
-    plt.scatter(track2[:, 0], track2[:, 1], c='b')
-    plt.scatter(track3[:, 0], track3[:, 1], c='k')
-    plt.show()
-    plt.scatter(track1[:, 0], track1[:, 2], c='r')
-    plt.scatter(track2[:, 0], track2[:, 2], c='b')
-    plt.scatter(track3[:, 0], track3[:, 2], c='k')
-    plt.show()
-    plt.scatter(track1[:, 0], track1[:, 3], c='r')
-    plt.scatter(track2[:, 0], track2[:, 3], c='b')
-    plt.scatter(track3[:, 0], track3[:, 3], c='k')
-    plt.show()
-
-    for i in range(1, 4):
-        plt.scatter(track1[:, 0], track1[:, i], c='r', alpha=0.7)
-        plt.scatter(track2[:, 0], track2[:, i], c='r', alpha=0.7)
-        plt.scatter(track3[:, 0], track3[:, i], c='r', alpha=0.7)
-        plt.scatter(track1[2, 0], kalman.state_predictions[-1][i - 1], c='b', alpha=0.4, s=400)
-        plt.show()
+    return tr.time_slice(data), big_list, test_names[test_num]
 
 
 class KalmanGating:
@@ -312,20 +323,16 @@ class KalmanGating:
         self.filter_length += 1
 
 
-if __name__ == "__main__":
-    # initialize the data
-    data, sep_data = noisy()
+def run_sim(test_num):
+    data, sep_data, test_name = get_data(test_num)
     if len(data[0]) == 1 and len(data[1]) == 1:
         init_x = data[0].reshape(4,)
         x_1 = data[1].reshape(4,)
     else:
-        print("Check the dimension of the data.")
-        print("init_x and x_1 should just be (4,) arrays.")
-        sys.exit()
+        init_x = data[0][0].reshape(4,)
+        x_1 = data[1][0].reshape(4,)
 
-    # data = clean()
-    # init_x = data[0].reshape(4,)
-    # x_1 = data[1].reshape(4,)
+
     mults = [1, 1, 1]
     s_u, s_w, m_init = np.eye(6) * mults[0], np.eye(6) * mults[1], np.eye(6) * mults[2]
     kalman = KalmanGating(s_u, s_w, init_x, m_init)
@@ -337,57 +344,61 @@ if __name__ == "__main__":
         point = kalman.gate(data[i])
         kalman.observation(point)
 
-    # =========================================================================
-    # analysis of performance =================================================
-    # =========================================================================
-    # number of misses and what not form the gates
-    print("Number of gate misses: ", kalman.num_gate_misees)
-    print("Number of 1 in gate: ", kalman.num_gate_ones)
-    print("Number of gate multiples: ", kalman.num_gate_multiples)
-
-    # a plot of the size of the covariance
-    covariance_norms = np.array([np.linalg.norm(m) for m in kalman.m_corr])
-    plt.plot(covariance_norms, label=str(mults))
-    plt.plot([], label=r"$S_u,\ S_w,\ \hat{M}[0|0]$")
-    plt.legend()
-    plt.title(r"Norm of $\hat{M}[n|n]$")
-    plt.xlabel(r"$n$")
-    plt.ylabel(r"||$\hat{M}[n|n]$||")
-    plt.show()
-
     # plot the chaos
     t1, exact_values = np.array(kalman.points)[:, 0], np.array(kalman.points)[:, 1:]
     t2, corrections = t1[1:], np.array(kalman.states_corr)[:, :3]
 
-    plt.scatter(sep_data[0][:, 0], sep_data[0][:, 1], marker=".", c='b')
-    plt.scatter(sep_data[1][:, 0], sep_data[1][:, 1], marker=".", c='g')
-    plt.scatter(sep_data[2][:, 0], sep_data[2][:, 1], marker=".", c='r')
-    plt.scatter(sep_data[3][:, 0], sep_data[3][:, 1], marker=".", c='orange')
-    plt.scatter(sep_data[4][:, 0], sep_data[4][:, 1], marker=".", c='brown')
-    plt.scatter(sep_data[5][:, 0], sep_data[5][:, 1], marker="x", c='k', alpha=0.5, s=0.15)
-    plt.plot(t2, corrections[:, 0], c='k')
-    plt.title("x")
-    plt.savefig("/home/anders/Desktop/tester_x.png", dpi=400)
+    plt.plot(t2, corrections[:, 0], c='r', zorder=3, lw=0.3, label="Estimated track")
+    plt.scatter(sep_data[0][:, 0], sep_data[0][:, 1], marker=".", c='b',
+                zorder=2, label="True detections")
+    plt.scatter(sep_data[1][:, 0], sep_data[1][:, 1], marker="x", c='k',
+                alpha=0.5,s=0.5, zorder=1, label="False detections")
+    plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    plt.xlabel(r"$t\ [s]$")
+    plt.ylabel(r"$r_x\ [m]$")
+    plt.title("x - "+test_name)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("test3_figs/x_"+test_name.strip()+".pdf")
     plt.show()
 
-    plt.scatter(sep_data[0][:, 0], sep_data[0][:, 2], marker=".", c='b')
-    plt.scatter(sep_data[1][:, 0], sep_data[1][:, 2], marker=".", c='g')
-    plt.scatter(sep_data[2][:, 0], sep_data[2][:, 2], marker=".", c='r')
-    plt.scatter(sep_data[3][:, 0], sep_data[3][:, 2], marker=".", c='orange')
-    plt.scatter(sep_data[4][:, 0], sep_data[4][:, 2], marker=".", c='brown')
-    plt.scatter(sep_data[5][:, 0], sep_data[5][:, 2], marker="x", c='k', alpha=0.5, s=0.15)
-    plt.plot(t2, corrections[:, 1], c='k')
-    plt.title("y")
-    plt.savefig("/home/anders/Desktop/tester_y.png", dpi=400)
+    plt.plot(t2, corrections[:, 1], c='r', zorder=3, lw=0.3, label="Estimated track")
+    plt.scatter(sep_data[0][:, 0], sep_data[0][:, 2], marker=".", c='b',
+                zorder=2, label="True detections")
+    plt.scatter(sep_data[1][:, 0], sep_data[1][:, 2], marker="x", c='k',
+                alpha=0.5,s=0.5, zorder=1, label="False detections")
+    plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    plt.xlabel(r"$t\ [s]$")
+    plt.ylabel(r"$r_y\ [m]$")
+    plt.title("y - "+test_name)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("test3_figs/y_"+test_name.strip()+".pdf")
     plt.show()
 
-    plt.scatter(sep_data[0][:, 0], sep_data[0][:, 3], marker=".", c='b')
-    plt.scatter(sep_data[1][:, 0], sep_data[1][:, 3], marker=".", c='g')
-    plt.scatter(sep_data[2][:, 0], sep_data[2][:, 3], marker=".", c='r')
-    plt.scatter(sep_data[3][:, 0], sep_data[3][:, 3], marker=".", c='orange')
-    plt.scatter(sep_data[4][:, 0], sep_data[4][:, 3], marker=".", c='brown')
-    plt.scatter(sep_data[5][:, 0], sep_data[5][:, 3], marker="x", c='k', alpha=0.5, s=0.15)
-    plt.plot(t2, corrections[:, 2], c='k')
-    plt.title("z")
-    plt.savefig("/home/anders/Desktop/tester_z.png", dpi=400)
+    plt.plot(t2, corrections[:, 2], c='r', zorder=3, lw=0.3, label="Estimated track")
+    plt.scatter(sep_data[0][:, 0], sep_data[0][:, 3], marker=".", c='b',
+                zorder=2, label="True detections")
+    plt.scatter(sep_data[1][:, 0], sep_data[1][:, 3], marker="x", c='k',
+                alpha=0.5,s=0.5, zorder=1, label="False detections")
+    plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    plt.xlabel(r"$t\ [s]$")
+    plt.ylabel(r"$r_z\ [m]$")
+    plt.title("z - "+test_name)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("test3_figs/z_"+test_name.strip()+".pdf")
     plt.show()
+
+    # print("Number of gate misses: ", kalman.num_gate_misees)
+    # print("Number of 1 in gate: ", kalman.num_gate_ones)
+    # print("Number of gate multiples: ", kalman.num_gate_multiples)
+    # with open('test2/snr10_MSE.txt', "w") as myfile:
+    #     myfile.write(mse_string_10)
+
+
+if __name__ == "__main__":
+    for i in range(30):
+        print("=================================\n")
+        run_sim(i)
+        print("=================================\n")
