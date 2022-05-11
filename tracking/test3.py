@@ -323,7 +323,7 @@ class KalmanGating:
         self.filter_length += 1
 
 
-def run_sim(test_num, plot=True, gate_count=True, mse=True):
+def run_sim(test_num, plot=True, gate_count=True, mse=True, dist=True, true_dat=None, true_time=None):
     data, sep_data, test_name = get_data(test_num)
     if len(data[0]) == 1 and len(data[1]) == 1:
         init_x = data[0].reshape(4, )
@@ -356,7 +356,6 @@ def run_sim(test_num, plot=True, gate_count=True, mse=True):
         plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         plt.xlabel(r"$t\ [s]$")
         plt.ylabel(r"$r_x\ [m]$")
-        plt.title("x - " + test_name)
         plt.legend()
         plt.tight_layout()
         plt.savefig("test3_figs/x_" + test_name.strip() + ".pdf")
@@ -370,7 +369,6 @@ def run_sim(test_num, plot=True, gate_count=True, mse=True):
         plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         plt.xlabel(r"$t\ [s]$")
         plt.ylabel(r"$r_y\ [m]$")
-        plt.title("y - " + test_name)
         plt.legend()
         plt.tight_layout()
         plt.savefig("test3_figs/y_" + test_name.strip() + ".pdf")
@@ -384,7 +382,6 @@ def run_sim(test_num, plot=True, gate_count=True, mse=True):
         plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         plt.xlabel(r"$t\ [s]$")
         plt.ylabel(r"$r_z\ [m]$")
-        plt.title("z - " + test_name)
         plt.legend()
         plt.tight_layout()
         plt.savefig("test3_figs/z_" + test_name.strip() + ".pdf")
@@ -401,27 +398,80 @@ def run_sim(test_num, plot=True, gate_count=True, mse=True):
             myfile.write(save_str)
         print("Saved gate counts")
 
+    if dist:
+        # The distance is only calculated for the points at which te detections are acutally there
+        # that means that the distance is not taking the indeces where only
+        # noise is present into consideration
+        detect = true_dat[test_num % 5]
+        t_detect = true_time[test_num % 5]*10
+        t_sad = np.round(sep_data[0][:, 0]*10)
+
+        times = []
+        distances = []
+
+        for i, t in enumerate(t2):
+            _t = np.round(t * 10)
+            app = np.where(_t == t_sad)[0]
+            if len(app) == 1:
+                times.append(_t)
+                _idx = np.where(t_sad[int(app)] == t_detect)[0]
+                idx = int(_idx)
+
+                x_diff = corrections[i, 0] - detect[idx, 0]
+                y_diff = corrections[i, 1] - detect[idx, 1]
+                z_diff = corrections[i, 2] - detect[idx, 2]
+
+                distance = np.sqrt(x_diff ** 2 + y_diff ** 2 + z_diff ** 2)
+                distances.append(distance)
+
+        times = np.array(times) / 10
+
+        plt.plot(times, distances, c='b')
+        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        plt.xlabel(r"$t\ [s]$")
+        plt.ylabel(r"$distance\ [m]$")
+        plt.tight_layout()
+        plt.savefig("test3_figs/x_dists_" + test_name.strip() + ".pdf")
+        plt.show()
+
+        slice_idx = int(len(times) / 10)
+        plt.plot(times[slice_idx:], distances[slice_idx:], c='b')
+        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        plt.xlabel(r"$t\ [s]$")
+        plt.ylabel(r"$distance\ [m]$")
+        plt.tight_layout()
+        plt.savefig("test3_figs/x_dists_sliced_" + test_name.strip() + ".pdf")
+        plt.show()
+
+        with open("test3_results/distances_" + test_name.strip(), "w") as myfile:
+            myfile.write(str(distances))
+            print("Saved distances")
+
     if mse:
         # The MSE is only calculated for the points at which te detections are acutally there
         # that means that the MSE is not taking the indeces where only noise is present into consideration
+
         detect = sep_data[0]
-        t_detect = np.round(detect[:, 0]*10)
+        t_sad = np.round(detect[:, 0]*10)
+        detect = true_dat[test_num % 5]
+        t_detect = true_time[test_num % 5]*10
 
         square_errors = []
         for i, t in enumerate(t2):
-            _t = np.round(t*10)
-            app = np.where(_t == t_detect)[0]
+            _t = np.round(t * 10)
+            app = np.where(_t == t_sad)[0]
             if len(app) == 1:
-                idx = int(app)
+                _idx = np.where(t_sad[int(app)] == t_detect)[0]
+                idx = int(_idx)
 
-                x_diff = corrections[i, 0] - detect[idx, 1]
-                y_diff = corrections[i, 1] - detect[idx, 2]
-                z_diff = corrections[i, 2] - detect[idx, 3]
+                x_diff = corrections[i, 0] - detect[idx, 0]
+                y_diff = corrections[i, 1] - detect[idx, 1]
+                z_diff = corrections[i, 2] - detect[idx, 2]
 
-                square_error = x_diff**2 + y_diff**2 + z_diff**2
+                square_error = x_diff ** 2 + y_diff ** 2 + z_diff ** 2
                 square_errors.append(square_error)
 
-        MSE = sum(square_errors)/len(square_errors)
+        MSE = sum(square_errors) / len(square_errors)
 
         with open("test3_results/MSE_" + test_name.strip(), "w") as myfile:
             myfile.write(str(MSE))
@@ -431,7 +481,19 @@ def run_sim(test_num, plot=True, gate_count=True, mse=True):
 
 
 if __name__ == "__main__":
+    entire_orbits_name = ["snr50/entireOrbit" + str(i) + ".txt" for i in range(1, 6)]
+    entire_data = []
+    entire_time = []
+
+    for i, file in enumerate(entire_orbits_name):
+        _dat = tr.velocity_algo(file)
+        t = _dat[2]
+        r = _dat[0][:, :3]
+
+        entire_data.append(r)
+        entire_time.append(t)
+
     for i in range(30):
         print("=================================\n")
-        run_sim(i, gate_count=True, plot=True, mse=True)
+        run_sim(i, plot=False, gate_count=False, mse=True, true_time=entire_time, true_dat=entire_data)
         print("=================================\n")
