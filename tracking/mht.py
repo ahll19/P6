@@ -211,12 +211,6 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                     # representing the tracks (x, m)
                     track_num = hyp_table[0, row, col]
                     
-                    track_points = tracks[f'{int(track_num)}']
-                    init_guess = track_points[0]
-                    m_guess = np.eye(6)
-                    
-                    
-                    
                     x = predictions[track_num][0][0][:3]
                     
                     m = predictions[track_num][0][1][:3, :3]
@@ -295,9 +289,39 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                 """
                 idx_track = np.where(hyp_table[0] == track_num)[0]
                 old_point = s0[idx_track[0]]
+                
+                track_points = tracks[f'{int(track_num)}'].copy()
 
-                prediction = __predict(old_point, s1[row])
-                predictions1[track_num] = (prediction, row)
+                track_points.append(s1[row])
+
+                
+                if len(track_points)>2: #new kalman
+                    # initialize kalman
+                    init_x = track_points[0]
+                    x_1 = track_points[1]
+                    
+                    mults = [1, 1, 1]
+                    s_u, s_w, m_init = np.eye(6) * mults[0], np.eye(6) * mults[1], np.eye(6) * mults[2]
+                    kalman = KalmanGating(s_u, s_w, init_x, m_init)
+                    kalman.init_gate(x_1)
+                    
+                    # run kalman
+                    for k in range(2, len(track_points)):
+                        kalman.prediction(append_prediction=True)
+                        point = kalman.gate([track_points[k]])
+                        kalman.observation(point)
+                        
+                    if len(track_points)>2:
+                        prediction = (kalman.state_predictions[-1],kalman.m_predictions[-1])
+                        predictions1[track_num] = (prediction, row)
+                    else:
+                        kalman.prediction(append_prediction=True)
+                        prediction = (kalman.state_predictions[-1],kalman.m_predictions[-1])
+                        predictions1[track_num] = (prediction, row)
+                else: #old working
+                        prediction = __predict(old_point, s1[row])
+                        predictions1[track_num] = (prediction, row)
+                    
 
     final_table = np.stack((pruned_table, new_track_indc))
 
@@ -336,7 +360,6 @@ tracks = {}
 for i in range(0,len(time_xyz)+1):
     tracks[str(i)] = []
 #%%
-M = 10
 for i in range(len(timesort_xyz)):
     new_points = timesort_xyz[i]
     iter_results = iter_tracking(
@@ -348,7 +371,7 @@ for i in range(len(timesort_xyz)):
     results.append(iter_results)
     most_likely_hyp = iter_results[1][0][:, 0]
     for k, t in enumerate(most_likely_hyp):
-        tracks[str(int(t))].append(timesort_xyz[i][int(k)][1:])
+        tracks[str(int(t))].append(timesort_xyz[i][int(k)])
         #if len(tracks[str(t)]) % M == 0:
 
     
@@ -375,6 +398,6 @@ print("==========================================")
 #%%
 for i in range(1, len(time_xyz)):
     if len(tracks[str(i)]) >= 2:
-        plt.scatter(np.array(tracks[str(i)])[:,1], np.array(tracks[str(i)])[:,2])
+        plt.scatter(np.array(tracks[str(i)])[:,2], np.array(tracks[str(i)])[:,3])
         
         
