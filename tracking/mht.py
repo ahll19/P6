@@ -56,20 +56,20 @@ def __predict(m0, m1):
 def __N_pdf(mean, Sig_inv):
     Sig = np.linalg.inv(Sig_inv)
     n = len(Sig)
-    part1 = np.exp(-0.5 * mean.T @ Sig_inv @ mean)
-    part2 = np.sqrt((2 * np.pi) ** n * np.abs(np.linalg.det(Sig)))
+    part1 = (-0.5 * mean.T @ Sig_inv @ mean)
+    part2 = np.log(np.sqrt((2 * np.pi) ** n * np.abs(np.linalg.det(Sig))))
     
-    return 3#(part1) / (part2)
+    return (part1) - (part2)
 
 
 def __beta_density(NFFT, n):
-    n_FA = 1#NFFT * np.exp(-10)
-    beta_FT = n_FA / n
-    beta_NT = (n - n_FA) / n
+    n_FA = 2#NFFT * np.exp(-10)
+    beta_FT = n_FA / (4.54*10**16)
+    beta_NT = (n) / (4.54*10**16)
     return beta_FT, beta_NT
 
 
-def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
+def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None, N_TGT = 2):
     """
     y_t is measurements at time t, where y_t_hat is a prediction at time t-1.
     The calculation y_t[i]-y_t_hat[i] corresponds to the calculation in the
@@ -93,20 +93,19 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
     prob : Array type of probabilities for each hypothesis
 
     """
-
     beta_FT, beta_NT = __beta_density(NFFT, len(H))
-    N_TGT = np.max(H) - len(H)  # Number of previously known targets
+    
 
     prob = np.zeros(len(H[0]))
     for i, hyp in enumerate(H.T):
         N_FT = np.count_nonzero(hyp == 0)  # Number of false
-        N_NT = np.count_nonzero(hyp >= N_TGT + 1)  # Number of known targets in hyp
+        N_NT = np.count_nonzero(hyp >= np.max(H) - len(H) + 1)  # Number of known targets in hyp
         N_DT = len(hyp) - N_FT - N_NT  # Number of prioer targets in given hyp
-
-        prob[i] = (P_D ** N_DT * (1 - P_D) ** (N_TGT - N_DT) * beta_FT ** N_FT * beta_NT ** N_NT)
-        prob[i] += 1e-10
+        #prob[i] = np.log((P_D ** N_DT * (1 - P_D) ** (N_TGT - N_DT) * beta_FT ** N_FT * beta_NT ** N_NT))
+        prob[i] = np.log(P_D)*N_DT + np.log(1 - P_D)*(N_TGT - N_DT) + np.log( beta_FT)* N_FT + np.log(beta_NT) * N_NT
+        print(np.log(beta_NT))
         if kal_info is not None and N_DT >= 1:
-            product = 1
+            product = 0
             y_t, y_hat_t, Sig_inv = 0,0,0
             for j,item in enumerate(hyp):
                 b = [(k, kal_info.index((j,item))) for k, kal_info in enumerate(kal_info) if (j,item) in kal_info]
@@ -117,16 +116,17 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None):
                 
                 y_t, y_hat_t, Sig_inv = kal_info[b][1:]
 
-                product *= __N_pdf(y_t - y_hat_t, Sig_inv)
+                product += __N_pdf(y_t - y_hat_t, Sig_inv)
 
-            prob[i] *= product * P_g
-            
+            prob[i] += product +np.log(P_g)
 
     prob_hyp = np.vstack((prob, H))
-
+    
+    #prob_hyp[0] = prob_hyp[0]/sum(prob_hyp[0])
     prob_hyp = prob_hyp.T[prob_hyp.T[:, 0].argsort()[::-1]].T
     
-    prob_hyp[0] = prob_hyp[0]/sum(prob_hyp[0])
+    
+   
 
     return prob_hyp
 
@@ -252,9 +252,9 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
         
 
     if len(kalman_info_all) > 0:
-        probability_hyp_table = __Pik(hyp_possible, kal_info=kalman_info_all, P_D=P_D)
+        probability_hyp_table = __Pik(hyp_possible, kal_info=kalman_info_all, P_D=P_D, N_TGT = np.count_nonzero(np.unique(hyp_table)))
     else:
-        probability_hyp_table = __Pik(hyp_possible, P_D=P_D)
+        probability_hyp_table = __Pik(hyp_possible, P_D=P_D, N_TGT = np.count_nonzero(np.unique(hyp_table)))
     
     # Prune the hypothesis table
     _pruned_table = __prune(probability_hyp_table)
@@ -308,16 +308,10 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                     # run kalman
                     for k in range(2, len(track_points)):
                         kalman.prediction(append_prediction=True)
-                        point = kalman.gate([track_points[k]])
-                        kalman.observation(point)
+                        kalman.observation(track_points[k])
                         
-                    if len(track_points)>2:
-                        prediction = (kalman.state_predictions[-1],kalman.m_predictions[-1])
-                        predictions1[track_num] = (prediction, row)
-                    else:
-                        kalman.prediction(append_prediction=True)
-                        prediction = (kalman.state_predictions[-1],kalman.m_predictions[-1])
-                        predictions1[track_num] = (prediction, row)
+                    prediction = (kalman.state_predictions[-1],kalman.m_predictions[-1])
+                    predictions1[track_num] = (prediction, row)
                 else: #old working
                         prediction = __predict(old_point, s1[row])
                         predictions1[track_num] = (prediction, row)
