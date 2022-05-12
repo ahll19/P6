@@ -3,7 +3,7 @@ import time
 # import cv2
 import numpy as np
 import pyopencl as cl
-
+import matplotlib.pyplot as plt
 
 ## Theres a problem with the opencl version
 ## The actual kernel isnt the problem as thats been working for years
@@ -105,7 +105,7 @@ def calc_fractal_opencl(chunks, maxiter):
         # OpenCL handles parallelizing (partitioning) depending on context device
         # After none, we're passing params to our kernel
         prg.mandelbrot(queue, chunk_shape, None, chunk_input_on_device, chunk_output_on_device, np.uint16(maxiter))
-
+        
         # Add the output chunk to our list to keep track of it
         output_chunks_on_device.append(chunk_output_on_device)
 
@@ -170,7 +170,7 @@ if __name__ == '__main__':
             g = np.zeros_like(self.mandel).astype(np.uint8)
             b = np.zeros_like(self.mandel).astype(np.uint8)
             # cv2.imwrite(self.fname, cv2.merge((b, g, r)))
-
+            
     # test the class
     test = Mandelbrot()
     plt.imshow(test.mandel)
