@@ -38,3 +38,5 @@ for i in range(len(t_orb)):
 data4 = np.concatenate(data4)
 
 data4 = data4[data4[:, 0].argsort()]
+
+np.savetxt("data4.txt",data4)
