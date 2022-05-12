@@ -56,16 +56,16 @@ def __predict(m0, m1):
 def __N_pdf(mean, Sig_inv):
     Sig = np.linalg.inv(Sig_inv)
     n = len(Sig)
+    mean *= 1/1000
     part1 = (-0.5 * mean.T @ Sig_inv @ mean)
     part2 = np.log(np.sqrt((2 * np.pi) ** n * np.abs(np.linalg.det(Sig))))
-    
     return (part1) - (part2)
 
 
 def __beta_density(NFFT, n):
-    n_FA = 2#NFFT * np.exp(-10)
+    n_FA = NFFT * np.exp(-10)
     beta_FT = n_FA / (4.54*10**16)
-    beta_NT = (n) / (4.54*10**16)
+    beta_NT = (n-n_FA) / (4.54*10**16)
     return beta_FT, beta_NT
 
 
@@ -103,7 +103,6 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None, N_TGT = 2):
         N_DT = len(hyp) - N_FT - N_NT  # Number of prioer targets in given hyp
         #prob[i] = np.log((P_D ** N_DT * (1 - P_D) ** (N_TGT - N_DT) * beta_FT ** N_FT * beta_NT ** N_NT))
         prob[i] = np.log(P_D)*N_DT + np.log(1 - P_D)*(N_TGT - N_DT) + np.log( beta_FT)* N_FT + np.log(beta_NT) * N_NT
-        print(np.log(beta_NT))
         if kal_info is not None and N_DT >= 1:
             product = 0
             y_t, y_hat_t, Sig_inv = 0,0,0
@@ -116,22 +115,19 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None, N_TGT = 2):
                 
                 y_t, y_hat_t, Sig_inv = kal_info[b][1:]
 
-                product += __N_pdf(y_t - y_hat_t, Sig_inv)
-
+                product += __N_pdf(y_t - y_hat_t, Sig_inv) 
             prob[i] += product +np.log(P_g)
-
     prob_hyp = np.vstack((prob, H))
     
     #prob_hyp[0] = prob_hyp[0]/sum(prob_hyp[0])
     prob_hyp = prob_hyp.T[prob_hyp.T[:, 0].argsort()[::-1]].T
-    
     
    
 
     return prob_hyp
 
 
-def __prune(prob_hyp, th=0.1, N_h=5):
+def __prune(prob_hyp, th=0.1, N_h=10):
     if len(np.where(prob_hyp[0] < th)[0]) > 0:
         cut_index = np.min(np.where(prob_hyp[0] < th))
         
@@ -295,12 +291,12 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                 track_points.append(s1[row])
 
                 
-                if len(track_points)>2: #new kalman
+                if False:#len(track_points)>2: #new kalman
                     # initialize kalman
                     init_x = track_points[0]
                     x_1 = track_points[1]
                     
-                    mults = [1, 1, 1]
+                    mults = [0.1, 0.5, 200]
                     s_u, s_w, m_init = np.eye(6) * mults[0], np.eye(6) * mults[1], np.eye(6) * mults[2]
                     kalman = KalmanGating(s_u, s_w, init_x, m_init)
                     kalman.init_gate(x_1)
@@ -324,7 +320,7 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
 
 # Data import -----------------------------------------------------------------
 # import data
-imports = ["snr50/truth1.txt", "snr50/truth2.txt", "snr50/truth3.txt", "nfft_15k/false.txt"]
+imports = ["snr50/truth1.txt", "snr50/truth2.txt", "snr50/truth3.txt", "snr50/truth4.txt", "snr50/truth5.txt", "nfft_15k/false.txt"]
 
 _data = []
 for i, file_ in enumerate(imports):
@@ -334,12 +330,13 @@ for i, file_ in enumerate(imports):
 data_ = np.concatenate((_data[0], _data[1]))
 data_ = np.concatenate((data_, _data[2]))
 data_ = np.concatenate((data_, _data[3]))
+data_ = np.concatenate((data_, _data[4]))
+#data_ = np.concatenate((data_, _data[5]))
 data = data_[data_[:, 0].argsort()]
 data = data[:]
 
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
-
 # Testing the code ------------------------------------------------------------
 # initial points n shit
 old_points = timesort_xyz.pop(0)
@@ -351,13 +348,15 @@ results = []
 new_points = timesort_xyz[0]
 
 tracks = {}
+tracks_weibel = {}
 for i in range(0,len(time_xyz)+1):
     tracks[str(i)] = []
+
 #%%
 for i in range(len(timesort_xyz)):
     new_points = timesort_xyz[i]
     iter_results = iter_tracking(
-        old_points, new_points, old_hyp, new_predicts, args=(12000, 10e6),tracks=tracks)
+        old_points, new_points, old_hyp, new_predicts, args=(12000, 10e7),tracks=tracks)
     old_points = iter_results[0]
     old_hyp = iter_results[1]
     new_predicts = iter_results[2]
@@ -368,30 +367,64 @@ for i in range(len(timesort_xyz)):
         tracks[str(int(t))].append(timesort_xyz[i][int(k)])
         #if len(tracks[str(t)]) % M == 0:
 
-    
 
-plt.scatter(data[:,0],data[:,1])
+          
+#%% plot test 4
+fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
+fig.subplots_adjust(left=0.1, wspace=0.3)
+fig.suptitle("Velocity",fontsize=29)
+
+#V_matlab = np.loadtxt('velocity_xyz_matlab.txt',skiprows=1,delimiter=',')*1000
+
+for i in range(1, len(time_xyz)):
+    if len(tracks[str(i)]) >= 10:
+        axs[0].plot(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1])
+        axs[0].grid(True)
+        axs[0].set_ylabel("x-coordinate [m]")
+        
+        axs[1].plot(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,2])
+        axs[1].grid(True)
+        axs[1].set_ylabel("y-coordinate [m]")
+        
+        axs[2].plot(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,3])
+        plt.ylim(-200000, 200000)
+        axs[2].grid(True)
+        axs[2].set_xlabel("Time [s]")
+        axs[2].set_ylabel("z-coordinate [m]")
+        plt.xlim([0,120])
+
 plt.show()
-'''
-for i in range(len(timesort_xyz)):
-    print(i)
-    new_points = timesort_xyz[i]
-    iter_results = iter_tracking(old_points, new_points, old_hyp, new_predicts, args=(12000, 10e6))
-    old_points = iter_results[0]
-    old_hyp = iter_results[1]
-    new_predicts = iter_results[2]
-    #print(new_predicts)
+"""
+fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
+fig.subplots_adjust(left=0.1, wspace=0.3)
+fig.suptitle("Velocity",fontsize=29)       
+for i in range(len(times4)):
+    axs[0].plot(times4[i], data_test4[i][:,0], color="blue",alpha=0.7)
+    axs[0].grid(True)
+    axs[0].set_ylabel("x-coordinate [m]")
+    
+    axs[1].plot(times4[i],data_test4[i][:,1], color="blue",alpha=0.7)
+    axs[1].grid(True)
+    axs[1].set_ylabel("y-coordinate [m]")
+    
+    axs[2].plot(times4[i],data_test4[i][:,2], color="blue",alpha=0.7)
+    plt.ylim(-200000, 200000)
+    axs[2].grid(True)
+    axs[2].set_xlabel("Time [s]")
+    axs[2].set_ylabel("z-coordinate [m]")
+    plt.xlim([0,120])
 
-    results.append(iter_results)
-'''
+#plt.savefig(save_path+"velocity_xyz.pdf")
+plt.show()
+
+"""
+
 print("==========================================")
 print("Tables:")
 #for i in range(len(results)):
 #    print(results[i][1][0])
 print("==========================================")
 #%%
-for i in range(1, len(time_xyz)):
-    if len(tracks[str(i)]) >= 2:
-        plt.scatter(np.array(tracks[str(i)])[:,2], np.array(tracks[str(i)])[:,3])
+
         
         
