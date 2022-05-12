@@ -56,7 +56,7 @@ def __predict(m0, m1):
 def __N_pdf(mean, Sig_inv):
     Sig = np.linalg.inv(Sig_inv)
     n = len(Sig)
-    mean *= 1/1000
+    mean *= 1/1000000
     part1 = (-0.5 * mean.T @ Sig_inv @ mean)
     part2 = np.log(np.sqrt((2 * np.pi) ** n * np.abs(np.linalg.det(Sig))))
     return (part1) - (part2)
@@ -65,7 +65,7 @@ def __N_pdf(mean, Sig_inv):
 def __beta_density(NFFT, n):
     n_FA = NFFT * np.exp(-10)
     beta_FT = n_FA / (4.54*10**16)
-    beta_NT = (n-n_FA) / (4.54*10**16)
+    beta_NT = (n - n_FA) / (4.54*10**16)
     return beta_FT, beta_NT
 
 
@@ -323,7 +323,7 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
 
 # Data import -----------------------------------------------------------------
 # import data
-imports = ["snr50/truth1.txt", "snr50/truth2.txt", "snr50/truth3.txt", "snr50/truth4.txt", "snr50/truth5.txt", "nfft_15k/false.txt"]
+imports = ["snr20/truth1.txt", "snr20/truth2.txt", "snr20/truth3.txt", "snr20/truth4.txt", "snr20/truth5.txt", "nfft_50k/false.txt"]
 
 _data = []
 for i, file_ in enumerate(imports):
@@ -334,10 +334,10 @@ data_ = np.concatenate((_data[0], _data[1]))
 data_ = np.concatenate((data_, _data[2]))
 data_ = np.concatenate((data_, _data[3]))
 data_ = np.concatenate((data_, _data[4]))
-#data_ = np.concatenate((data_, _data[5]))
+data_ = np.concatenate((data_, _data[5]))
 data = data_[data_[:, 0].argsort()]
 data = data[:]
-
+#data = np.loadtxt("data4.txt") #For test 4
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
 # Testing the code ------------------------------------------------------------
@@ -356,72 +356,115 @@ for i in range(0,len(time_xyz)+1):
     tracks[str(i)] = []
 
 #%%
+all_predicts = dict()
 for i in range(len(timesort_xyz)):
     new_points = timesort_xyz[i]
     iter_results = iter_tracking(
-        old_points, new_points, old_hyp, new_predicts, args=(12000, 10e7),tracks=tracks)
+        old_points, new_points, old_hyp, new_predicts, args=(12000, 10e8),tracks=tracks)
     old_points = iter_results[0]
     old_hyp = iter_results[1]
     new_predicts = iter_results[2]
+    
+    for key, value in new_predicts.items():
+        if key in all_predicts:
+            if isinstance(all_predicts[key], list):
+                all_predicts[key].append(np.concatenate([np.array([new_points[0][0]+0.1]),value[0][0][:3]]))
+                
+            else:
+                temp_list = [all_predicts[key]]
+                temp_list.append(value)
+                all_predicts[key] = temp_list
+        else:
+            all_predicts[key] = value
 
     results.append(iter_results)
     most_likely_hyp = iter_results[1][0][:, 0]
     for k, t in enumerate(most_likely_hyp):
         tracks[str(int(t))].append(timesort_xyz[i][int(k)])
-        #if len(tracks[str(t)]) % M == 0:
 
+for key in all_predicts.keys():
+    all_predicts[key] = np.array(all_predicts[key][2:])
 
           
 #%% plot test 4
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Velocity",fontsize=29)
+fig.suptitle("Position",fontsize=29)
 
 #V_matlab = np.loadtxt('velocity_xyz_matlab.txt',skiprows=1,delimiter=',')*1000
 
+track_count = 1
 for i in range(1, len(time_xyz)):
     if len(tracks[str(i)]) >= 10:
-        axs[0].plot(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1])
+        axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], label = "Track" + str(track_count))
         axs[0].grid(True)
-        axs[0].set_ylabel("x-coordinate [m]")
+        axs[0].set_ylabel("$r_y$ [m]")
         
-        axs[1].plot(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,2])
+        axs[1].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,2], label = "Track" + str(track_count))
         axs[1].grid(True)
-        axs[1].set_ylabel("y-coordinate [m]")
+        axs[1].set_ylabel("$r_y$ [m]")
         
-        axs[2].plot(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,3])
+        
+        axs[2].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,3] , label = "Track" +str(track_count))
         plt.ylim(-200000, 200000)
         axs[2].grid(True)
         axs[2].set_xlabel("Time [s]")
-        axs[2].set_ylabel("z-coordinate [m]")
+        axs[2].set_ylabel("$r_z$ [m]")
         plt.xlim([0,120])
-
+        track_count += 1
+        axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
+plt.tight_layout()
+plt.savefig("test4/mht_xyz.pdf")
 plt.show()
-"""
+
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Velocity",fontsize=29)       
-for i in range(len(times4)):
-    axs[0].plot(times4[i], data_test4[i][:,0], color="blue",alpha=0.7)
+fig.suptitle("Position",fontsize=29)       
+axs[0].scatter(time_xyz[:,0], time_xyz[:,1], color="blue",alpha=0.7)
+axs[0].grid(True)
+axs[0].set_ylabel("$r_x$ [m]")
+
+axs[1].scatter(time_xyz[:,0], time_xyz[:,2], color="blue",alpha=0.7)
+axs[1].grid(True)
+axs[1].set_ylabel("$r_y$ [m]")
+
+axs[2].scatter(time_xyz[:,0], time_xyz[:,3], color="blue",alpha=0.7)
+plt.ylim(-200000, 200000)
+axs[2].grid(True)
+axs[2].set_xlabel("Time [s]")
+axs[2].set_ylabel("$r_z$ [m]")
+plt.xlim([0,120])
+
+plt.savefig("test4/data4_xyz.pdf")
+#plt.savefig(save_path+"velocity_xyz.pdf")
+plt.show()
+   
+track_count = 1
+fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
+fig.subplots_adjust(left=0.1, wspace=0.3)
+fig.suptitle("Position",fontsize=29)   
+
+for t in sorted(all_predicts.keys()):
+    axs[0].scatter(all_predicts[t][:,0], all_predicts[t][:,1], label = "Track" + str(track_count))
     axs[0].grid(True)
-    axs[0].set_ylabel("x-coordinate [m]")
+    axs[0].set_ylabel("$r_y$ [m]")
     
-    axs[1].plot(times4[i],data_test4[i][:,1], color="blue",alpha=0.7)
+    axs[1].scatter(all_predicts[t][:,0], all_predicts[t][:,2], label = "Track" + str(track_count))
     axs[1].grid(True)
-    axs[1].set_ylabel("y-coordinate [m]")
+    axs[1].set_ylabel("$r_y$ [m]")
     
-    axs[2].plot(times4[i],data_test4[i][:,2], color="blue",alpha=0.7)
+    
+    axs[2].scatter(all_predicts[t][:,0], all_predicts[t][:,3], label = "Track" + str(track_count))
     plt.ylim(-200000, 200000)
     axs[2].grid(True)
     axs[2].set_xlabel("Time [s]")
-    axs[2].set_ylabel("z-coordinate [m]")
+    axs[2].set_ylabel("$r_z$ [m]")
     plt.xlim([0,120])
+    track_count += 1
+    axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
+plt.tight_layout()
 
-#plt.savefig(save_path+"velocity_xyz.pdf")
 plt.show()
-
-"""
-
 print("==========================================")
 print("Tables:")
 #for i in range(len(results)):
