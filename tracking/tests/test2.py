@@ -4,9 +4,8 @@ import numpy as np
 import os, sys
 import matplotlib.pyplot as plt
 import importlib
-
-sys.path.insert(1, os.getcwd())
 import tracking as tr
+
 
 importlib.reload(tr)
 

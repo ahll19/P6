@@ -6,14 +6,8 @@ Notes:
     - Mahalanobis normen er lidt fucky-wucky
 """
 # %% Imports
-import sys
-import os
 import numpy as np
-from itertools import product
-from scipy import special
 import matplotlib.pyplot as plt
-
-sys.path.insert(1, os.getcwd())
 import tracking as tr
 
 
@@ -334,6 +328,7 @@ if __name__ == "__main__":
     # run kalman
     for i in range(2, len(data)):
         kalman.prediction(append_prediction=True)
+        print(data[i].shape)
         point = kalman.gate(data[i])
         kalman.observation(point)
 

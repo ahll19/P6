@@ -1,9 +1,5 @@
-import sys
-import os
 import numpy as np
 import matplotlib.pyplot as plt
-
-sys.path.insert(1, os.getcwd())
 import tracking as tr
 
 
@@ -495,5 +491,5 @@ if __name__ == "__main__":
 
     for i in range(30):
         print("=================================\n")
-        run_sim(i, plot=False, gate_count=False, mse=True, true_time=entire_time, true_dat=entire_data)
+        run_sim(i, plot=True, gate_count=False, mse=False, true_time=entire_time, true_dat=entire_data)
         print("=================================\n")

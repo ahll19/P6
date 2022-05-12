@@ -1,0 +1,8 @@
+	- Estimated af S_w skulle ændres fra 1 til 1/50, før at x fulgte den bedre
+	- Vi vælger kun at arbejde med apriori viden for at rent faktisk kunne
+	  følge satelliterne
+	- Der burde kunne lade sig gøre at bruge kalman til at rent faktisk lave multi tracking.
+		- Vi kunne have et max antal tracks, og prune hver gang et track har for høj en
+		  afstand over et interval (bare støj), og prune tracks som konvergere omkirng
+		  det samme
+		
