@@ -76,7 +76,7 @@ for sat in range(0,5):
     #axs[1][1].yaxis.set_label_coords(x_, y_)
     plt.legend(bbox_to_anchor=(1.04,1), loc="upper left", borderaxespad=0,fontsize=fontsiz)
     plt.tight_layout()
-    #plt.savefig(fig_path+f"/entire_orb_zoom_sat{sat+1}.pdf")
+    plt.savefig(fig_path+f"/entire_orb_zoom_sat{sat+1}.pdf")
     plt.show()
 
 
@@ -197,14 +197,6 @@ for i,file_ in enumerate(file_entire_orb):
     A_orb[i] = A_orb[i][lower:upper+1]
     E_orb[i] = E_orb[i][lower:upper+1]
     dR_orb[i] = dR_orb[i][lower:upper+1]
-
-data4 = []
-for i in range(len(t_orb)):
-    data4.append(np.vstack((t_orb[i],R_orb[i],A_orb[i],E_orb[i],dR_orb[i])).T)
-data4 = np.concatenate(data4)
-
-data4 = data4[data4[:, 0].argsort()]
-
 
 fig, axs = plt.subplots(2,2, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)

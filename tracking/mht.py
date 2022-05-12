@@ -178,7 +178,6 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
     global total_tracks
     ls = len(s1)
     new_track_numbers = np.arange(total_tracks, total_tracks + ls)
-
     total_tracks += ls
 
     new_table = []
@@ -209,17 +208,16 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                     track_num = hyp_table[0, row, col]
                     
                     x = predictions[track_num][0][0][:3]
-                    m = predictions[track_num][0][1][:3, :3]
                     
+                    m = predictions[track_num][0][1][:3, :3]
                     d = (x - m1[1:]).T @ np.linalg.inv(m) @ (x - m1[1:])
                     threshold = args[1]
-                    #print((x - m1[1:]),np.linalg.inv(m),d)
+                    
                     if d < threshold:
                         mn_hyp.append(hyp_table[0, row, col])
                         if [i,int(hyp_table[0, row, col])] not in kalman_info:
                             kalman_info.append([i,int(hyp_table[0, row, col])])
                             kalman_info_all.append([(i,int(hyp_table[0, row, col])),m1[1:],x,np.linalg.inv(m)])
-                            
 
         # save the potential of new track in the hypothesis
         mn_hyp.append(new_track_numbers[i])
@@ -291,6 +289,7 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                 track_points = tracks[f'{int(track_num)}'].copy()
 
                 track_points.append(s1[row])
+
                 
                 if False:#len(track_points)>2: #new kalman
                     # initialize kalman
@@ -309,11 +308,9 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                         
                     prediction = (kalman.state_predictions[-1],kalman.m_predictions[-1])
                     predictions1[track_num] = (prediction, row)
-                else: 
-                    #kalman = KalmanGating(s_u, s_w, old_point, m_init)
-                    #kalman.init_gate(s1[row])
-                    prediction = __predict(old_point,s1[row])
-                    predictions1[track_num] = (prediction, row)
+                else: #old working
+                        prediction = __predict(old_point, s1[row])
+                        predictions1[track_num] = (prediction, row)
                     
 
     final_table = np.stack((pruned_table, new_track_indc))
