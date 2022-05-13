@@ -17,7 +17,7 @@ total_tracks = 0
 mu = 3.986004418e14
 
 # Used in calculating hyp proba.
-snr = 50
+snr = 20
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
 
@@ -436,14 +436,13 @@ axs[2].set_ylabel("$r_z$ [m]")
 plt.xlim([0,120])
 
 plt.savefig("test4/data4_xyz.pdf")
-#plt.savefig(save_path+"velocity_xyz.pdf")
 plt.show()
    
 track_count = 1
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
 fig.suptitle("Position",fontsize=29)   
-
+#Kalman predictions til test 4
 for t in sorted(all_predicts.keys()):
     axs[0].scatter(all_predicts[t][:,0], all_predicts[t][:,1], label = "Track" + str(track_count))
     axs[0].grid(True)
@@ -463,7 +462,6 @@ for t in sorted(all_predicts.keys()):
     track_count += 1
     axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
 plt.tight_layout()
-
 plt.show()
 print("==========================================")
 print("Tables:")
