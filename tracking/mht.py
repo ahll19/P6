@@ -17,7 +17,7 @@ total_tracks = 0
 mu = 3.986004418e14
 
 # Used in calculating hyp proba.
-snr = 20
+snr = 50
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
 
@@ -63,7 +63,7 @@ def __N_pdf(mean, Sig_inv):
 
 
 def __beta_density(NFFT, n):
-    n_FA =0.00001# NFFT * np.exp(-10)
+    n_FA = NFFT * np.exp(-10)
     beta_FT = n_FA / (4.54*10**16)
     beta_NT = (n - n_FA) / (4.54*10**16)
     return beta_FT, beta_NT
@@ -323,7 +323,7 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
 
 # Data import -----------------------------------------------------------------
 # import data
-imports = ["snr20/truth1.txt", "snr20/truth2.txt", "snr20/truth3.txt", "snr20/truth4.txt", "snr20/truth5.txt", "nfft_50k/false.txt"]
+imports = ["snr50/truth1.txt", "snr50/truth2.txt", "snr50/truth3.txt", "snr50/truth4.txt", "snr50/truth5.txt", "nfft_15k/false.txt"]
 
 _data = []
 for i, file_ in enumerate(imports):
@@ -337,7 +337,7 @@ data_ = np.concatenate((data_, _data[4]))
 data_ = np.concatenate((data_, _data[5]))
 data = data_[data_[:, 0].argsort()]
 data = data[:]
-data = np.loadtxt("data4.txt") #For test 4
+#data = np.loadtxt("data4.txt") #For test 4
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
 # Testing the code ------------------------------------------------------------
@@ -414,7 +414,7 @@ for i in range(1, len(time_xyz)):
         track_count += 1
         axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
 plt.tight_layout()
-plt.savefig("test4/mht_xyz.pdf")
+plt.savefig("test5/mht_xyz_snr50_15k.pdf")
 plt.show()
 
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
@@ -435,7 +435,7 @@ axs[2].set_xlabel("Time [s]")
 axs[2].set_ylabel("$r_z$ [m]")
 plt.xlim([0,120])
 
-plt.savefig("test4/data4_xyz.pdf")
+plt.savefig("test5/data5_xyz_snr50_15k.pdf")
 plt.show()
    
 track_count = 1
@@ -468,7 +468,17 @@ print("Tables:")
 #for i in range(len(results)):
 #    print(results[i][1][0])
 print("==========================================")
-#%%
+#%% Test 4 Hvor mange af punkterne i vores tracks er rigtige
 
-        
-        
+total_tracks = []
+total_tracks.append(tr.conversion(np.loadtxt("data4_sat2.txt")))
+total_tracks.append(tr.conversion(np.loadtxt("data4_sat3.txt")))
+total_tracks.append(tr.conversion(np.loadtxt("data4_sat1.txt")))
+total_tracks.append(tr.conversion(np.loadtxt("data4_sat5.txt")))
+total_tracks.append(tr.conversion(np.loadtxt("data4_sat4.txt")))
+
+track_perc = np.zeros(5)
+for count,i in enumerate(all_predicts):
+    for j in tracks[str(int(i))]:  
+        if j in total_tracks[count]:
+            track_perc[count] += 1/len(total_tracks[count])
