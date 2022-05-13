@@ -385,7 +385,28 @@ for i in range(len(timesort_xyz)):
 for key in all_predicts.keys():
     all_predicts[key] = np.array(all_predicts[key][2:])
 
-          
+# %% Anders to the rescue
+# IMPORTANT:
+# Not a real correction step, since we have no estimate of the velocity
+s_w = np.eye(3) @ np.array([1]*3)
+m_pred = 2*np.eye(3)
+k_gain = m_pred @ np.linalg.inv(s_w + m_pred)
+corrected = dict()
+
+for key in all_predicts:
+    # We cut off 3 indeces from track, cause weird stuff is hapenning
+    # make sure it's the right points we cut off
+
+    predict = all_predicts[key][:]
+    t = predict[:, 0]
+    predict = predict[:, 1:]
+    key = str(int(key))
+    track = np.array(tracks[key])[3:, 1:]
+
+    # Transposing cuz dimensions are weird
+    corrected[key] = np.column_stack((t, predict + (k_gain @ (track - predict).T).T))
+
+
 #%% plot test 4
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
