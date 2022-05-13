@@ -420,20 +420,20 @@ for i in range(1, len(time_xyz)):
         axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], label = "Track" + str(track_count))
         axs[0].grid(True)
         axs[0].set_ylabel("$r_y$ [m]")
-        
+        axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         axs[1].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,2], label = "Track" + str(track_count))
         axs[1].grid(True)
         axs[1].set_ylabel("$r_y$ [m]")
-        
+        axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         
         axs[2].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,3] , label = "Track" +str(track_count))
         plt.ylim(-200000, 200000)
         axs[2].grid(True)
         axs[2].set_xlabel("Time [s]")
         axs[2].set_ylabel("$r_z$ [m]")
-        plt.xlim([0,120])
+        axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         track_count += 1
-        axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
+        axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)
 plt.tight_layout()
 plt.savefig("test5/mht_xyz_snr50_15k.pdf")
 plt.show()
@@ -444,13 +444,15 @@ fig.suptitle("Position",fontsize=29)
 axs[0].scatter(time_xyz[:,0], time_xyz[:,1], color="blue",alpha=0.7)
 axs[0].grid(True)
 axs[0].set_ylabel("$r_x$ [m]")
+axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
 
 axs[1].scatter(time_xyz[:,0], time_xyz[:,2], color="blue",alpha=0.7)
 axs[1].grid(True)
+axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
 axs[1].set_ylabel("$r_y$ [m]")
 
 axs[2].scatter(time_xyz[:,0], time_xyz[:,3], color="blue",alpha=0.7)
-plt.ylim(-200000, 200000)
+axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
 axs[2].grid(True)
 axs[2].set_xlabel("Time [s]")
 axs[2].set_ylabel("$r_z$ [m]")
@@ -468,18 +470,18 @@ for t in sorted(all_predicts.keys()):
     axs[0].scatter(all_predicts[t][:,0], all_predicts[t][:,1], label = "Track" + str(track_count))
     axs[0].grid(True)
     axs[0].set_ylabel("$r_y$ [m]")
-    
+    axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     axs[1].scatter(all_predicts[t][:,0], all_predicts[t][:,2], label = "Track" + str(track_count))
     axs[1].grid(True)
+    axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     axs[1].set_ylabel("$r_y$ [m]")
     
     
     axs[2].scatter(all_predicts[t][:,0], all_predicts[t][:,3], label = "Track" + str(track_count))
-    plt.ylim(-200000, 200000)
     axs[2].grid(True)
     axs[2].set_xlabel("Time [s]")
     axs[2].set_ylabel("$r_z$ [m]")
-    plt.xlim([0,120])
+    axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     track_count += 1
     axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
 plt.tight_layout()
