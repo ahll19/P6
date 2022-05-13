@@ -63,7 +63,7 @@ def __N_pdf(mean, Sig_inv):
 
 
 def __beta_density(NFFT, n):
-    n_FA = NFFT * np.exp(-10)
+    n_FA =0.00001# NFFT * np.exp(-10)
     beta_FT = n_FA / (4.54*10**16)
     beta_NT = (n - n_FA) / (4.54*10**16)
     return beta_FT, beta_NT
@@ -337,7 +337,7 @@ data_ = np.concatenate((data_, _data[4]))
 data_ = np.concatenate((data_, _data[5]))
 data = data_[data_[:, 0].argsort()]
 data = data[:]
-#data = np.loadtxt("data4.txt") #For test 4
+data = np.loadtxt("data4.txt") #For test 4
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
 # Testing the code ------------------------------------------------------------
