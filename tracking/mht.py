@@ -20,7 +20,7 @@ mu = 3.986004418e14
 snr = 50
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
-
+NFFT = 15000
 
 # Intermediate functions ------------------------------------------------------
 def __predict(m0, m1):
@@ -65,11 +65,11 @@ def __N_pdf(mean, Sig_inv):
 def __beta_density(NFFT, n):
     n_FA = NFFT * np.exp(-10)
     beta_FT = n_FA / (4.54*10**16)
-    beta_NT = (n - n_FA) / (4.54*10**16)
+    beta_NT = (n) / (4.54*10**16)
     return beta_FT, beta_NT
 
 
-def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None, N_TGT = 2):
+def __Pik(H, P_g=1, P_D=0.2, kal_info=None, N_TGT = 2):
     """
     y_t is measurements at time t, where y_t_hat is a prediction at time t-1.
     The calculation y_t[i]-y_t_hat[i] corresponds to the calculation in the
@@ -93,6 +93,8 @@ def __Pik(H, P_g=1, P_D=0.2, NFFT=15000, kal_info=None, N_TGT = 2):
     prob : Array type of probabilities for each hypothesis
 
     """
+    global NFFT
+    #NFFT = 15000
     beta_FT, beta_NT = __beta_density(NFFT, len(H))
     
 
@@ -323,7 +325,7 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
 
 # Data import -----------------------------------------------------------------
 # import data
-imports = ["snr50/truth1.txt", "snr50/truth2.txt", "snr50/truth3.txt", "snr50/truth4.txt", "snr50/truth5.txt", "nfft_15k/false.txt"]
+imports = ["snr"+str(snr)+"/truth1.txt", "snr"+str(snr)+"/truth2.txt", "snr"+str(snr)+"/truth3.txt", "snr"+str(snr)+"/truth4.txt", "snr"+str(snr)+"/truth5.txt", "nfft_"+str(NFFT)[:2]+"k/false.txt"]
 
 _data = []
 for i, file_ in enumerate(imports):
@@ -398,10 +400,12 @@ for key in all_predicts:
     # make sure it's the right points we cut off
 
     predict = all_predicts[key][:]
-    t = predict[:, 0]
-    predict = predict[:, 1:]
+    t = predict[:-1, 0]
+    predict = predict[:-1, 1:]
     key = str(int(key))
-    track = np.array(tracks[key])[3:, 1:]
+    start = np.where(np.array(tracks[key])[:,0] == round(all_predicts[float(key)][0][0],1))[0][0]
+    end = np.where(np.array(tracks[key])[:,0] == round(all_predicts[float(key)][-2][0],1))[0][0]
+    track = np.array(tracks[key])[start:end+1, 1:]
 
     # Transposing cuz dimensions are weird
     corrected[key] = np.column_stack((t, predict + (k_gain @ (track - predict).T).T))
@@ -410,24 +414,23 @@ for key in all_predicts:
 #%% plot test 4
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position",fontsize=29)
+fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",fontsize=29)
 
 #V_matlab = np.loadtxt('velocity_xyz_matlab.txt',skiprows=1,delimiter=',')*1000
 
+size = 10
 track_count = 1
 for i in range(1, len(time_xyz)):
     if len(tracks[str(i)]) >= 10:
-        axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], label = "Track" + str(track_count))
+        axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], label = "Track" + str(track_count), s = size)
         axs[0].grid(True)
         axs[0].set_ylabel("$r_y$ [m]")
         axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        axs[1].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,2], label = "Track" + str(track_count))
+        axs[1].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,2], label = "Track" + str(track_count), s = size)
         axs[1].grid(True)
         axs[1].set_ylabel("$r_y$ [m]")
         axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        
-        axs[2].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,3] , label = "Track" +str(track_count))
-        plt.ylim(-200000, 200000)
+        axs[2].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,3] , label = "Track" +str(track_count), s = size)
         axs[2].grid(True)
         axs[2].set_xlabel("Time [s]")
         axs[2].set_ylabel("$r_z$ [m]")
@@ -435,30 +438,29 @@ for i in range(1, len(time_xyz)):
         track_count += 1
         axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)
 plt.tight_layout()
-plt.savefig("test5/mht_xyz_snr50_15k.pdf")
+plt.savefig("test5/mht_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k.pdf")
 plt.show()
 
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position",fontsize=29)       
-axs[0].scatter(time_xyz[:,0], time_xyz[:,1], color="blue",alpha=0.7)
+fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",fontsize=29)   
+axs[0].scatter(time_xyz[:,0], time_xyz[:,1], color="blue",alpha=0.7, s = size)
 axs[0].grid(True)
 axs[0].set_ylabel("$r_x$ [m]")
 axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
 
-axs[1].scatter(time_xyz[:,0], time_xyz[:,2], color="blue",alpha=0.7)
+axs[1].scatter(time_xyz[:,0], time_xyz[:,2], color="blue",alpha=0.7, s = size)
 axs[1].grid(True)
-axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
 axs[1].set_ylabel("$r_y$ [m]")
 
-axs[2].scatter(time_xyz[:,0], time_xyz[:,3], color="blue",alpha=0.7)
+axs[2].scatter(time_xyz[:,0], time_xyz[:,3], color="blue",alpha=0.7, s = size)
 axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
 axs[2].grid(True)
 axs[2].set_xlabel("Time [s]")
 axs[2].set_ylabel("$r_z$ [m]")
-plt.xlim([0,120])
 
-plt.savefig("test5/data5_xyz_snr50_15k.pdf")
+plt.savefig("test5/data5_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k.pdf")
 plt.show()
    
 track_count = 1
