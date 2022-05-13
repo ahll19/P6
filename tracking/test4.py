@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import tracking as tr
 from kalman_gating import KalmanGating as KG
 
-
 # %% Import the actual orbits
 entire_orbits_name = ["snr50/entireOrbit" + str(i) + ".txt" for i in range(1, 6)]
 _data = []
@@ -60,14 +59,14 @@ while i < max_iter and (abs_min is None or abs_max is None):
 data_sliced = data_sliced_[abs_min:abs_max]
 
 # %% Start 5 kalman filters apriori
-mults = [1, 1/50, 1]
+mults = [1, 1 / 50, 1]
 s_u, s_w, m_init = np.eye(6) * mults[0], np.eye(6) * mults[1], np.eye(6) * mults[2]
-filter_running = [False]*5
+filter_running = [False] * 5
 
 x_inits = [np.hstack((t[0], dat[0, :])) for t, dat in zip(times, data)]
 x_1s = [np.hstack((t[1], dat[1, :])) for t, dat in zip(times, data)]
 
-kalman_filters = [KG(s_u, s_w, x_init.reshape(4,), m_init) for x_init in x_inits]
+kalman_filters = [KG(s_u, s_w, x_init.reshape(4, ), m_init) for x_init in x_inits]
 for kf, x_1 in zip(kalman_filters, x_1s):
     kf.init_gate(x_1)
 
@@ -84,7 +83,6 @@ for i, dat in enumerate(data_sliced):
             point = kf.gate(dat)
             kf.observation(point)
 
-
 # %% Plot the apriori data
 track_color = ["r", "g", "b", "orange", "pink"]
 track_coordinate = ["x", "y", "z"]
@@ -98,7 +96,7 @@ for i in range(3):
         plt.ylabel(r"$[m]$")
         plt.tight_layout()
 
-        plt.plot(times[j], track[:, i], c=track_color[j] , lw=10, alpha=0.2)
-        plt.plot(times[j], state[1:, i], c=track_color[j] , ls='-.')
+        plt.plot(times[j], track[:, i], c=track_color[j], lw=10, alpha=0.2)
+        plt.plot(times[j], state[1:, i], c=track_color[j], ls='-.')
 
     plt.show()

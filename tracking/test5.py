@@ -52,10 +52,10 @@ for tdp in test_data_placeholder:
 # %% Initialize the Kalman filters
 mults = [1, 1/50, 1]
 s_u, s_w, m_init = np.eye(6) * mults[0], np.eye(6) * mults[1], np.eye(6) * mults[2]
-filter_running = [[False]*5]*3
+filter_running = [[False]*5]*6
 
-x_inits = [[track[0, :].reshape(4,) for track in snr_detect] for snr_detect in true_detections]
-x_1s = [[track[1, :].reshape(4,) for track in snr_detect] for snr_detect in true_detections]
+x_inits = [[track[0, :].reshape(4,) for track in snr_detect] for snr_detect in true_detections]*2
+x_1s = [[track[1, :].reshape(4,) for track in snr_detect] for snr_detect in true_detections]*2
 
 kalman_filters = [[KG(s_u, s_w, x_init, m_init) for x_init in snr_inits] for snr_inits in x_inits]
 for i, snr_kf in enumerate(kalman_filters):
@@ -63,19 +63,35 @@ for i, snr_kf in enumerate(kalman_filters):
         kf.init_gate(x_1s[i][j].reshape(4,))
 
 # %% Run the kalman filters
-num_runs = 113220
+num_runs = 113220*2
 counter = 0
 for dat in test_data:
     for meas in dat:
         for i, snr_kf in enumerate(kalman_filters):
             for j, kf in enumerate(snr_kf):
-                if track_minmax_times[i][j][0] == meas[0, 0]:
+                if track_minmax_times[i % 3][j % 5][0] == meas[0, 0]:
                     filter_running[i][j] = True
-                elif track_minmax_times[i][j][1] == meas[0, 0]:
+                elif track_minmax_times[i % 3][j % 5][1] == meas[0, 0]:
                     filter_running[i][j] = False
                 if filter_running[i][j]:
                     kf.prediction(append_prediction=True)
-                    point = kf.gate(dat)
+                    point = kf.gate(meas)
                     kf.observation(point)
+                counter += 1
 
-    print(f"{counter*100/num_runs:.2f}%")
+        print(f"{counter*100/num_runs:.2f}%")
+
+# %% Plot the chaos
+
+# plt.plot(t2, corrections[:, 1], c='r', zorder=3, lw=0.3, label="Estimated track")
+# plt.scatter(sep_data[0][:, 0], sep_data[0][:, 2], marker=".", c='b',
+#             zorder=2, label="True detections")
+# plt.scatter(sep_data[1][:, 0], sep_data[1][:, 2], marker="x", c='k',
+#             alpha=0.5, s=0.5, zorder=1, label="False detections")
+# plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+# plt.xlabel(r"$t\ [s]$")
+# plt.ylabel(r"$r_y\ [m]$")
+# plt.legend()
+# plt.tight_layout()
+# plt.show()
+# plt.savefig("test3_figs/y_" + test_name.strip() + ".pdf")
