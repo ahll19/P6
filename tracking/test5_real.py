@@ -87,26 +87,42 @@ def test(snr, nfft):
 
 
 if __name__ == "__main__":
-    result = test(20, 50)
-    tracks = result['tracks']
-    detects = result['true_detections']
+    snrs = [10, 20, 50]
+    nffts = [15, 50]
+    results = []
+    xyz = [r"$r_x$", r"$r_y$", r"$r_z$"]
 
-    for i in range(1, 4):
-        for j in range(5):
-            plt.plot(tracks[j][:, 0], tracks[j][:, i], label="Tracks", lw=0.5, c='k')
-            plt.scatter(detects[j][:, 0], detects[j][:, i], label="Detections", marker="x", s=0.8, alpha=0.3)
+    for snr in snrs:
+        for nfft in nffts:
+            res = test(snr, nfft)
+            results.append((res, (snr, nfft)))
 
-        handles, labels = plt.gca().get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        plt.legend(by_label.values(), by_label.keys())
-        plt.show()
+    for result in results:
+        tracks = result[0]["tracks"]
+        detects = result[0]["true_detections"]
+        all_detects = result[0]["all_detections"]
+        snr, nfft = result[1]
+        for i in range(3):
+            plt.scatter(all_detects[:, 0], all_detects[:, i+1], marker="x", s=0.2, alpha=0.4, c='k')
+            plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+            plt.xlabel("Time [s]")
+            plt.ylabel(xyz[i])
+            plt.title(f"SNR: {snr} - NFFT: {nfft} - All detections")
+            plt.show()
 
-    # snrs = [10, 20, 50]
-    # nffts = [15, 50]
-    # results = []
-    #
-    # for snr in snrs:
-    #     for nfft in nffts:
-    #         res = test(snr, nfft)
-    #         results.append((res, f"({snr}, {nfft})"))
+        for i in range(1, 4):
+            for j in range(5):
+                plt.plot(tracks[j][:, 0], tracks[j][:, i], label="Tracks", c='r', zorder=3)
+                plt.scatter(detects[j][:, 0], detects[j][:, i], label="TD", s=2, c='b', zorder=2)
+                plt.scatter(all_detects[:, 0], all_detects[:, i], label="FD", marker="x", s=0.2,
+                            alpha=0.4, c='k', zorder=1)
+                plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+                plt.xlabel("Time [s]")
+                plt.ylabel(xyz[i-1])
+                plt.title(f"SNR: {snr} - NFFT: {nfft}")
+
+            handles, labels = plt.gca().get_legend_handles_labels()
+            by_label = dict(zip(labels, handles))
+            plt.legend(by_label.values(), by_label.keys())
+            plt.show()
 
