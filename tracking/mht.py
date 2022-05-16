@@ -96,7 +96,6 @@ def __Pik(H, P_g=1, P_D=0.2, kal_info=None, N_TGT = 2):
     global NFFT
     #NFFT = 15000
     beta_FT, beta_NT = __beta_density(NFFT, len(H))
-    
 
     prob = np.zeros(len(H[0]))
     for i, hyp in enumerate(H.T):
@@ -338,6 +337,7 @@ data_ = np.concatenate((data_, _data[3]))
 data_ = np.concatenate((data_, _data[4]))
 data_ = np.concatenate((data_, _data[5]))
 data = data_[data_[:, 0].argsort()]
+a = tr.conversion(_data[1])
 data = data[:]
 #data = np.loadtxt("data4.txt") #For test 4
 time_xyz = tr.conversion(data)
@@ -351,7 +351,7 @@ new_predicts = dict()
 # saving the results
 results = []
 new_points = timesort_xyz[0]
-
+#%%
 tracks = {}
 tracks_weibel = {}
 for i in range(0,len(time_xyz)+1):
@@ -372,6 +372,7 @@ for i in range(len(timesort_xyz)):
             if isinstance(all_predicts[key], list):
                 all_predicts[key].append(np.concatenate([np.array([new_points[0][0]+0.1]),value[0][0][:3]]))
             else:
+                print("yo",i)
                 temp_list = [all_predicts[key]]
                 temp_list.append(np.concatenate([np.array([new_points[0][0]+0.1]),value[0][0][:3]]))
                 all_predicts[key] = temp_list
