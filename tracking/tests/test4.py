@@ -83,20 +83,48 @@ for i, dat in enumerate(data_sliced):
             point = kf.gate(dat)
             kf.observation(point)
 
-# %% Plot the apriori data
-track_color = ["r", "g", "b", "orange", "pink"]
-track_coordinate = ["x", "y", "z"]
+# %% Plot the data
+xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
+_xyz = ["x", "y", "z"]
 for i in range(3):
     for j, track in enumerate(data):
         state = np.array(kalman_filters[j].states_corr)
 
-        plt.title(f"{track_coordinate[i]}")
-        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        plt.xlabel(r"$[s]$")
-        plt.ylabel(r"$[m]$")
+        plt.xlabel(r"Time $[s]$")
+        plt.ylabel(xyz[i])
         plt.tight_layout()
+        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
 
-        plt.plot(times[j], track[:, i], c=track_color[j], lw=10, alpha=0.2)
-        plt.plot(times[j], state[1:, i], c=track_color[j], ls='-.')
+        plt.plot(times[j], track[:, i], c='b', zorder=1, label="True track")
+        plt.plot(times[j], state[1:, i], c='r', ls='-.', label="Kalman track")
 
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    plt.legend(by_label.values(), by_label.keys())
     plt.show()
+
+distances = []
+for i, track in enumerate(data):
+    _equal_times = []
+    for j, t in enumerate(times[i]):
+        idx = int(np.where(t == entire_time[i])[0])
+        _equal_times.append(idx)
+    equal_times = np.array(_equal_times)
+
+    dx = track[:, 0] - entire_data[i][equal_times, 0]
+    dy = track[:, 1] - entire_data[i][equal_times, 1]
+    dz = track[:, 2] - entire_data[i][equal_times, 2]
+
+    dist = np.sqrt(dx * dx + dy * dy + dz * dz)
+    mse = np.sum(dist ** 2)/len(dist)
+
+    plt.plot(times[i], dist, c='b')
+    plt.xlabel(r"Time $[s]$")
+    plt.ylabel(r"Distance $[m]$")
+    plt.title(f"Track: {i+1}")
+    plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    plt.savefig(f"test4_figs/dist_track{i+1}.pdf")
+    plt.show()
+
+    with open(f"test4_results/track{i+1}_mse.txt", "w") as myfile:
+        myfile.write(str(mse))

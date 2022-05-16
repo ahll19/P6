@@ -559,7 +559,7 @@ def track_MSE(track_predicted, track_true, t_predicted, t_true):
     # indeces.pop(0)
 
     # Find the difference between the tracks at given time indeces
-    diff = track_predicted - track_true[indeces]
+    diff = track_predicted[1:] - track_true[indeces][:-1]
     diff = diff[:, :3]
     abs_diff = np.sum(diff ** 2, axis=1) ** 0.5
     mse = np.sum(abs_diff ** 2) / abs_diff.shape[0]

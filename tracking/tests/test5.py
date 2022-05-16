@@ -97,8 +97,8 @@ if __name__ == "__main__":
         entire_orbit_t.append(t)
         print(f"Imported {name}")
 
-    snrs = [20]
-    nffts = [15]
+    snrs = [10, 20, 50]
+    nffts = [15, 50]
     results = []
     xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
     _xyz = ["x", "y", "z"]
@@ -139,6 +139,8 @@ if __name__ == "__main__":
             plt.savefig(f"test5_figs/snr{result[1][0]}_nfft{result[1][1]}_{_xyz[i-1]}.pdf")
             plt.show()
 
+        print("Saved plots!")
+
         distances = []
         for i, track in enumerate(tracks):
             track_dist = []
@@ -163,7 +165,15 @@ if __name__ == "__main__":
             plt.xlabel(r"Time $[s]$")
             plt.ylabel(r"Distance $[m]$")
             plt.title(f"Track: {i+1}")
+            plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
             plt.savefig(f"test5_figs/snr{result[1][0]}_nfft{result[1][1]}_dist{i+1}.pdf")
             plt.show()
+        print("Saved distance plots")
 
-            # LAV MSE
+        save_names = [f"test5_results/mse_snr{result[1][0]}_nfft{result[1][1]}_track{i}.txt" for i in range(1, 6)]
+        for i, dist in enumerate(distances):
+            mse = np.sum(dist ** 2)/len(dist)
+            with open(save_names[i], "w") as myfile:
+                myfile.write(str(mse))
+
+        print("Saved MSEs")

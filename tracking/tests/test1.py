@@ -71,13 +71,12 @@ for i in range(5):
 mse_string = ""
 for i in range(5):
     names, vals = kalman_filers[i].get_data()
-
     mse, dist = tr.track_MSE(vals[1], entire_state[i], entire_t[i], entire_t[i])
 
     mse_string += "Track number " + str(i + 1) + " MSE: " + str(mse) + "\n"
     mse_save_string = "test1/distanceplot_track" + str(i + 1) + ".pdf"
 
-    plt.plot(entire_t[i], dist)
+    plt.plot(entire_t[i][1:], dist)
     plt.xlabel("Time [s]")
     plt.ylabel("Distance [m]")
     plt.savefig(mse_save_string)
@@ -85,3 +84,5 @@ for i in range(5):
 
 with open('test1/MSE.txt', "w") as myfile:
     myfile.write(mse_string)
+
+print("Done")
