@@ -17,7 +17,7 @@ total_tracks = 0
 mu = 3.986004418e14
 
 # Used in calculating hyp proba.
-snr = 50
+snr = 20
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
 NFFT = 15000
@@ -330,7 +330,7 @@ _data = []
 for i, file_ in enumerate(imports):
     _data.append(np.array(tr.import_data(file_)).T)
 
-
+data1 = tr.conversion(_data[1])
 data_ = np.concatenate((_data[0], _data[1]))
 data_ = np.concatenate((data_, _data[2]))
 data_ = np.concatenate((data_, _data[3]))
@@ -512,7 +512,7 @@ print("==========================================")
 track_count = 1
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position",fontsize=29)   
+fig.suptitle("Position(Corrections), " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",fontsize=29)     
 for t in corrected.keys():
     axs[0].scatter(corrected[t][:,0], corrected[t][:,1], label = "Track" + str(track_count))
     axs[0].grid(True)
@@ -531,10 +531,10 @@ for t in corrected.keys():
     axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
 plt.tight_layout()
 plt.show()
-
-
 mse = {}
 dist_plot = {}
+
+"""
 for j,key in enumerate(corrected):
     
     track_ = total_tracks[j]
@@ -563,5 +563,5 @@ for j,key in enumerate(corrected):
     
     plt.plot(dist_plot[key])
     plt.show()
-    
+"""
     
