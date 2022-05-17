@@ -29,6 +29,6 @@ plt.xticks(x+0.25, xlabels)
 plt.ylabel("log(MSE)")
 ax.set_yscale('log')
 
-
+plt.tight_layout()
 plt.savefig('test2/MSEs_all_sats.pdf')
 plt.show()
