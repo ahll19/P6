@@ -20,7 +20,7 @@ mu = 3.986004418e14
 snr = 20
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
-NFFT = 50000
+NFFT = 15000
 
 # Intermediate functions ------------------------------------------------------
 def __predict(m0, m1):
@@ -200,10 +200,8 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                     dt = np.abs(m1[0] - s0[row][0])
                     vmax = args[0]
                     d_dist = m1[1:] - s0[row][1:]
-                    #print(np.linalg.norm(d_dist),dt)
                     if np.linalg.norm(d_dist) <= vmax * dt:
                         mn_hyp.append(hyp_table[0, row, col])
-                        #print("hejhej")
 
                 else:
                     # Mahalanobis gating (not really though), see docstring.
@@ -217,7 +215,7 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                     d = (x - m1[1:]).T @ np.linalg.inv(m) @ (x - m1[1:])
                     threshold = args[1]
                     #print((x - m1[1:]),np.linalg.inv(m),d)
-                    if np.sqrt(d) < threshold:
+                    if d < threshold:
                         mn_hyp.append(hyp_table[0, row, col])
                         if [i,int(hyp_table[0, row, col])] not in kalman_info:
                             kalman_info.append([i,int(hyp_table[0, row, col])])
@@ -320,14 +318,14 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                     
 
     final_table = np.stack((pruned_table, new_track_indc))
-    
+
     return s1, final_table, predictions1
 
 
 # Data import -----------------------------------------------------------------
 # import data
 imports = ["snr"+str(snr)+"/truth1.txt", "snr"+str(snr)+"/truth2.txt", "snr"+str(snr)+"/truth3.txt", "snr"+str(snr)+"/truth4.txt", "snr"+str(snr)+"/truth5.txt", "nfft_"+str(NFFT)[:2]+"k/false.txt"]
-
+path = "test2/mht/"
 _data = []
 for i, file_ in enumerate(imports):
     _data.append(np.array(tr.import_data(file_)).T)
@@ -336,234 +334,166 @@ data_ = np.concatenate((_data[0], _data[1]))
 data_ = np.concatenate((data_, _data[2]))
 data_ = np.concatenate((data_, _data[3]))
 data_ = np.concatenate((data_, _data[4]))
-data_ = np.concatenate((data_, _data[5]))
+#data_ = np.concatenate((data_, _data[5]))
 data = data_[data_[:, 0].argsort()]
 
 data = data[:]
-#data = np.loadtxt("data4.txt") #For test 4
-time_xyz = tr.conversion(data)
-timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
-# Testing the code ------------------------------------------------------------
-# initial points n shit
-old_points = timesort_xyz.pop(0)
-old_hyp, s1 = init_tracking(old_points)
-new_predicts = dict()
-
-# saving the results
-results = []
-new_points = timesort_xyz[0]
-#%%
-tracks = {}
-tracks_weibel = {}
-for i in range(0,len(time_xyz)+1):
-    tracks[str(i)] = []
-
-#%%
-all_predicts = dict()
-for i in range(len(timesort_xyz)):
-    new_points = timesort_xyz[i]
-    iter_results = iter_tracking(
-        old_points, new_points, old_hyp, new_predicts, args=(100000, 10e8),tracks=tracks)
-    old_points = iter_results[0]
-    old_hyp = iter_results[1]
-    new_predicts = iter_results[2]
-    #print(old_hyp[0])
-    #if i > 80:
-    #    break
-    for key, value in new_predicts.items():
-        if key in all_predicts:
-            if isinstance(all_predicts[key], list):
-                all_predicts[key].append(np.concatenate([np.array([new_points[0][0]+0.1]),value[0][0][:3]]))
+txt_file = []
+for iiii in range(1,6):
+    data = np.array(_data[iiii-1][:,:-1]) # cuts off snr form data test 2
+    #data = np.loadtxt(f"data4_sat{iiii}.txt") #For test 1
+    
+    time_xyz = tr.conversion(data)
+    timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
+    # Testing the code ------------------------------------------------------------
+    # initial points n shit
+    old_points = timesort_xyz.pop(0)
+    old_hyp, s1 = init_tracking(old_points)
+    new_predicts = dict()
+    
+    # saving the results
+    results = []
+    new_points = timesort_xyz[0]
+    #%%
+    tracks = {}
+    tracks_weibel = {}
+    for i in range(0,len(time_xyz)+1):
+        tracks[str(i)] = []
+    
+    #%%
+    all_predicts = dict()
+    for i in range(len(timesort_xyz)):
+        new_points = timesort_xyz[i]
+        iter_results = iter_tracking(
+            old_points, new_points, old_hyp, new_predicts, args=(100000, 10e8),tracks=tracks)
+        old_points = iter_results[0]
+        old_hyp = iter_results[1]
+        new_predicts = iter_results[2]
+        
+        for key, value in new_predicts.items():
+            if key in all_predicts:
+                if isinstance(all_predicts[key], list):
+                    all_predicts[key].append(np.concatenate([np.array([new_points[0][0]+0.1]),value[0][0][:3]]))
+                else:
+                    temp_list = [all_predicts[key]]
+                    temp_list.append(np.concatenate([np.array([new_points[0][0]+0.1]),value[0][0][:3]]))
+                    all_predicts[key] = temp_list
             else:
-                temp_list = [all_predicts[key]]
-                temp_list.append(np.concatenate([np.array([new_points[0][0]+0.1]),value[0][0][:3]]))
-                all_predicts[key] = temp_list
-                print("yo",i)
-        else:
-            all_predicts[key] = np.concatenate([np.array([new_points[0][0]+0.1]),value[0][0][:3]])
-
-    results.append(iter_results)
-    most_likely_hyp = iter_results[1][0][:, 0]
-    for k, t in enumerate(most_likely_hyp):
-        tracks[str(int(t))].append(timesort_xyz[i][int(k)])
-
-
-# %% 
-s_w = np.eye(3) @ np.array([1]*3)
-m_pred = 2.01*np.eye(3)
-k_gain = m_pred @ np.linalg.inv(s_w + m_pred)
-corrected = dict()
-
-for key in all_predicts:
-    # We cut off 3 indeces from track, cause weird stuff is hapenning
-    # make sure it's the right points we cut off
-
-    predict = np.array(all_predicts[key][:])
-    t = predict[:-1, 0]
-    predict = predict[:-1, 1:]
-    key = str(int(key))
-    start = np.where(np.array(tracks[key])[:,0] == round(all_predicts[float(key)][0][0],1))[0][0]
-    end = np.where(np.array(tracks[key])[:,0] == round(all_predicts[float(key)][-2][0],1))[0][0]
-    track = np.array(tracks[key])[start:end+1, 1:]
-
-    # Transposing cuz dimensions are weird
-    corrected[key] = np.column_stack((t, predict + (k_gain @ (track - predict).T).T))
-
-
-#%% plot test 4
-fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
-fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",fontsize=29)
-
-#V_matlab = np.loadtxt('velocity_xyz_matlab.txt',skiprows=1,delimiter=',')*1000
-
-size = 10
-track_count = 1
-for i in range(1, len(time_xyz)):
-    if len(tracks[str(i)]) >= 10:
-        axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], label = "Track" + str(track_count), s = size)
-        axs[0].grid(True)
-        axs[0].set_ylabel("$r_y$ [m]")
-        axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        axs[1].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,2], label = "Track" + str(track_count), s = size)
-        axs[1].grid(True)
-        axs[1].set_ylabel("$r_y$ [m]")
-        axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        axs[2].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,3] , label = "Track" +str(track_count), s = size)
-        axs[2].grid(True)
-        axs[2].set_xlabel("Time [s]")
-        axs[2].set_ylabel("$r_z$ [m]")
-        plt.xlim([0,120])
-        track_count += 1
-        axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
-plt.tight_layout()
-#plt.savefig("test5/mht_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k.pdf")
-plt.show()
-
-fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
-fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",fontsize=29)   
-axs[0].scatter(time_xyz[:,0], time_xyz[:,1], color="blue",alpha=0.7, s = size)
-axs[0].grid(True)
-axs[0].set_ylabel("$r_x$ [m]")
-
-axs[1].scatter(time_xyz[:,0], time_xyz[:,2], color="blue",alpha=0.7, s = size)
-axs[1].grid(True)
-axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-axs[1].set_ylabel("$r_y$ [m]")
-
-axs[2].scatter(time_xyz[:,0], time_xyz[:,3], color="blue",alpha=0.7, s = size)
-axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-axs[2].grid(True)
-axs[2].set_xlabel("Time [s]")
-axs[2].set_ylabel("$r_z$ [m]")
-
-plt.savefig("test5/data5_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k.pdf")
-plt.show()
-   
-track_count = 1
-fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
-fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position",fontsize=29)   
-#Kalman predictions til test 4
-for t in sorted(all_predicts.keys()):
-    axs[0].scatter(np.array(all_predicts[t])[:,0], np.array(all_predicts[t])[:,1], label = "Track" + str(track_count))
-    axs[0].grid(True)
-    axs[0].set_ylabel("$r_y$ [m]")
+                all_predicts[key] = np.concatenate([np.array([new_points[0][0]+0.1]),value[0][0][:3]])
     
-    axs[1].scatter(np.array(all_predicts[t])[:,0], np.array(all_predicts[t])[:,2], label = "Track" + str(track_count))
-    axs[1].grid(True)
-    axs[1].set_ylabel("$r_y$ [m]")
+        results.append(iter_results)
+        most_likely_hyp = iter_results[1][0][:, 0]
+        for k, t in enumerate(most_likely_hyp):
+            tracks[str(int(t))].append(timesort_xyz[i][int(k)])
     
     
-    axs[2].scatter(np.array(all_predicts[t])[:,0], np.array(all_predicts[t])[:,3], label = "Track" + str(track_count))
-    axs[2].grid(True)
-    axs[2].set_xlabel("Time [s]")
-    axs[2].set_ylabel("$r_z$ [m]")
-    plt.xlim([0,120])
-    track_count += 1
-    axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
-plt.tight_layout()
-plt.show()
+    # %% 
+    s_w = np.eye(3) @ np.array([1]*3)
+    m_pred = 2.01*np.eye(3)
+    k_gain = m_pred @ np.linalg.inv(s_w + m_pred)
+    corrected = dict()
     
+    for key in all_predicts:
+        # We cut off 3 indeces from track, cause weird stuff is hapenning
+        # make sure it's the right points we cut off
     
+        predict = np.array(all_predicts[key][:])
+        t = predict[:-1, 0]
+        predict = predict[:-1, 1:]
+        key = str(int(key))
+        start = np.where(np.array(tracks[key])[:,0] == round(all_predicts[float(key)][0][0],1))[0][0]
+        end = np.where(np.array(tracks[key])[:,0] == round(all_predicts[float(key)][-2][0],1))[0][0]
+        track = np.array(tracks[key])[start:end+1, 1:]
+    
+        # Transposing cuz dimensions are weird
+        corrected[key] = np.column_stack((t, predict + (k_gain @ (track - predict).T).T))
+    
+    entire_orb = []
+    entire_orb.append(tr.conversion(np.loadtxt("data4_sat1.txt")))
+    entire_orb.append(tr.conversion(np.loadtxt("data4_sat2.txt")))
+    entire_orb.append(tr.conversion(np.loadtxt("data4_sat3.txt")))
+    entire_orb.append(tr.conversion(np.loadtxt("data4_sat4.txt")))
+    entire_orb.append(tr.conversion(np.loadtxt("data4_sat5.txt")))
+    
+    #%% Plots
+    fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
+    fig.subplots_adjust(left=0.1, wspace=0.3)
+    fig.suptitle(f"Satellite {iiii}", fontsize=29)# + "SNR = " + str(snr) +", NFFT = " + str(NFFT)[:2]+"k",fontsize=29)
 
-#%% Test 4 Hvor mange af punkterne i vores tracks er rigtige
+    #V_matlab = np.loadtxt('velocity_xyz_matlab.txt',skiprows=1,delimiter=',')*1000
 
-total_tracks = []
-total_tracks.append(tr.conversion(np.loadtxt("data4_sat2.txt")))
-total_tracks.append(tr.conversion(np.loadtxt("data4_sat3.txt")))
-total_tracks.append(tr.conversion(np.loadtxt("data4_sat1.txt")))
-total_tracks.append(tr.conversion(np.loadtxt("data4_sat5.txt")))
-total_tracks.append(tr.conversion(np.loadtxt("data4_sat4.txt")))
-
-track_perc = np.zeros(5)
-for count,i in enumerate(all_predicts):
-    for j in tracks[str(int(i))]:  
-        if j in total_tracks[count]:
-            track_perc[count] += 1/len(total_tracks[count])
-
-print("==========================================")
-print("Tables:")
-for i in range(len(track_perc)):
-    print(f"Track{i+1}",round(track_perc[i],5))
-print("==========================================")
-
-#%% Corrections
-track_count = 1
-fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
-fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position(Corrections), " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",fontsize=29)     
-for t in corrected.keys():
-    axs[0].scatter(corrected[t][:,0], corrected[t][:,1], label = "Track" + str(track_count))
-    axs[0].grid(True)
-    axs[0].set_ylabel("$r_y$ [m]")
-    
-    axs[1].scatter(corrected[t][:,0], corrected[t][:,2], label = "Track" + str(track_count))
-    axs[1].grid(True)
-    axs[1].set_ylabel("$r_y$ [m]")
-    
-    axs[2].scatter(corrected[t][:,0], corrected[t][:,3], label = "Track" + str(track_count))
-    axs[2].grid(True)
-    axs[2].set_xlabel("Time [s]")
-    axs[2].set_ylabel("$r_z$ [m]")
-    plt.xlim([0,120])
-    track_count += 1
-    axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
-plt.tight_layout()
-plt.show()
-
-'''
-mse = {}
-dist_plot = {}
-for j,key in enumerate(corrected):
-    
-    track_ = total_tracks[j]
-    corrected_ = corrected[key]
-    
-    start = np.where(round(corrected[key][0][0],1) == track_)[0][0]
-    print(key)
-    #taking into account if corr or track has the highest time index
-    if round(np.max(corrected_[:,0]),1) > round(np.max(track_[:,0]),1):
-        end = np.where(corrected[key] == round(track_[-1][0],1))[0][0]
-        track_compare = track_[start:, :]
-        corrected_ = corrected_[:end+1,:]
-    else:
-        end = np.where(round(corrected[key][-1][0],1) == track_)[0][0]
-        track_compare = track_[start:end+1, :]
-    
-
-    mse[key] = 0
-    dist_arr = np.zeros(len(track_compare))
-    for i,(tra,corr) in enumerate(zip(track_compare,corrected_)):
-        mse[key] += np.linalg.norm(tra[1:]-corr[1:])**2
-        dist_arr[i] = np.linalg.norm(tra[1:]-corr[1:])
-    
-    mse[key] *= 1/len(track_compare)
-    
-    dist_plot[key] = dist_arr
-    
-    plt.plot(track_compare[:,0],dist_plot[key],color="b")
+    size = 10
+    track_count = 1
+    for i,t in enumerate(corrected.keys()):
+        i += 1
+        if len(tracks[str(i)]) >= 10:
+            axs[0].scatter(corrected[t][:,0], corrected[t][:,1], label = "Kalman" , color="b")
+            axs[0].plot(entire_orb[iiii-1][:,0], entire_orb[iiii-1][:,1], label = "True orbit", color = "r", linestyle='--')
+            axs[0].grid(True)
+            axs[0].set_ylabel("$r_y$ [m]")
+            axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+            
+            axs[1].scatter(corrected[t][:,0], corrected[t][:,2], label = "Kalman" , color="b")
+            axs[1].plot(entire_orb[iiii-1][:,0], entire_orb[iiii-1][:,2], label = "True orbit", color = "r", linestyle='--')
+            axs[1].grid(True)
+            axs[1].set_ylabel("$r_y$ [m]")
+            axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+            
+            axs[2].scatter(corrected[t][:,0], corrected[t][:,3], label = "Kalman" , color="b")
+            axs[2].plot(entire_orb[iiii-1][:,0], entire_orb[iiii-1][:,3] , label = "True orbit", color = "r", linestyle='--')
+            axs[2].grid(True)
+            axs[2].set_xlabel("Time [s]")
+            axs[2].set_ylabel("$r_z$ [m]")
+            axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+            #plt.xlim([0,120])
+            track_count += 1
+            axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
+    plt.tight_layout()
+    plt.savefig(path+f"test2_sat{iiii}_pos_snr{snr}.pdf")
     plt.show()
-'''
     
+    mse = {}
+    dist_plot = {}
+    for j,key in enumerate(corrected):
+        
+        #data vs true
+        #corrected_ = entire_orb[iiii-1]
+        #track_ = time_xyz
+        
+        # corrections vs true
+        track_ = entire_orb[iiii-1]
+        corrected_ = corrected[key]
+        
+        start = np.where(round(corrected[key][0][0],1) == track_)[0][0]
+        
+        #taking into account if corr or track has the highest time index
+        if round(np.max(corrected_[:,0]),1) > round(np.max(track_[:,0]),1):
+            end = np.where(corrected_ == round(track_[-1][0],1))[0][0]
+            track_compare = track_[start:, :]
+            corrected_ = corrected_[:end+1,:]
+        else:
+            end = np.where(round(corrected[key][-1][0],1) == track_)[0][0]
+            track_compare = track_[start:end+1, :]
+        
+    
+        mse[key] = 0
+        dist_arr = np.zeros(len(track_compare))
+        for i,(tra,corr) in enumerate(zip(track_compare,corrected_)):
+            mse[key] += np.linalg.norm(tra[1:]-corr[1:])**2
+            dist_arr[i] = np.linalg.norm(tra[1:]-corr[1:])
+        
+        mse[key] *= 1/len(track_compare)
+        
+        dist_plot[key] = dist_arr
+        
+        plt.plot(track_compare[:,0],dist_plot[key],color="b")
+        plt.title("Data vs Kalman")
+        plt.xlabel("Time [s]")
+        plt.ylabel("Distance [m]")
+        plt.savefig(path+f"test2_sat{iiii}_dist_snr{snr}_corr.pdf")
+        plt.show()
+        
+        txt_file.append(f"Track number {iiii} MSE:\n{mse[key]}")
+        
+np.savetxt(path+f"MSE_snr{snr}_corr.txt", np.array(txt_file,dtype="object"), fmt='%s')
+
