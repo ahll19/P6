@@ -15,13 +15,13 @@ total_tracks = 0
 
 # wiki "standard gravitational parameter"
 mu = 3.986004418e14
-
-wavelet = False
+testnr = 5
+wavelet = True
 # Used in calculating hyp proba.
-snr = 50
+snr = 10
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
-NFFT = 15000
+NFFT = 50000
 
 # Intermediate functions ------------------------------------------------------
 def __predict(m0, m1):
@@ -341,7 +341,8 @@ data_ = np.concatenate((data_, _data[5]))
 data = data_[data_[:, 0].argsort()]
 
 data = data[:]
-data = np.loadtxt("data4.txt") #For test 4
+if testnr == 4:
+    data = np.loadtxt("data4.txt") #For test 4
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
 # Testing the code ------------------------------------------------------------
@@ -408,7 +409,7 @@ s_w = 0.001*np.eye(3) @ np.array([1]*3)
 m_pred = 2.01*np.eye(3)
 k_gain = m_pred @ np.linalg.inv(s_w + m_pred)
 corrected = dict()
-
+"""
 for key in all_predicts:
     # We cut off 3 indeces from track, cause weird stuff is hapenning
     # make sure it's the right points we cut off
@@ -424,7 +425,7 @@ for key in all_predicts:
     # Transposing cuz dimensions are weird
     corrected[key] = np.column_stack((t, predict + (k_gain @ (track - predict).T).T))
 
-
+"""
 #%% plot test 4
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
@@ -435,7 +436,7 @@ fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",f
 size = 10
 track_count = 1
 for i in range(1, len(time_xyz)):
-    if len(tracks[str(i)]) >= 10:
+    if len(tracks[str(i)]) >= 2:
         axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], label = "Track" + str(track_count), s = size)
         axs[0].grid(True)
         axs[0].set_ylabel("$r_y$ [m]")
@@ -448,16 +449,16 @@ for i in range(1, len(time_xyz)):
         axs[2].grid(True)
         axs[2].set_xlabel("Time [s]")
         axs[2].set_ylabel("$r_z$ [m]")
-        plt.xlim([0,120])
+        axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         track_count += 1
         axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
 plt.tight_layout()
-#plt.savefig("test5/mht_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k.pdf")
+plt.savefig("test"+str(testnr)+"/mht_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k" + "wave_" + str(wavelet) + ".pdf")
 plt.show()
 
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",fontsize=29)   
+fig.suptitle("Data, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",fontsize=29)   
 axs[0].scatter(time_xyz[:,0], time_xyz[:,1], color="blue",alpha=0.7, s = size)
 axs[0].grid(True)
 axs[0].set_ylabel("$r_x$ [m]")
@@ -473,35 +474,11 @@ axs[2].grid(True)
 axs[2].set_xlabel("Time [s]")
 axs[2].set_ylabel("$r_z$ [m]")
 
-plt.savefig("test5/data5_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k.pdf")
+plt.savefig("test"+str(testnr)+"/data"+str(testnr)+"_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k" + "wave_" + str(wavelet) + ".pdf")
 plt.show()
    
-track_count = 1
-fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
-fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position",fontsize=29)   
-#Kalman predictions til test 4
-for t in sorted(all_predicts.keys()):
-    axs[0].scatter(np.array(all_predicts[t])[:,0], np.array(all_predicts[t])[:,1], label = "Track" + str(track_count))
-    axs[0].grid(True)
-    axs[0].set_ylabel("$r_y$ [m]")
-    
-    axs[1].scatter(np.array(all_predicts[t])[:,0], np.array(all_predicts[t])[:,2], label = "Track" + str(track_count))
-    axs[1].grid(True)
-    axs[1].set_ylabel("$r_y$ [m]")
-    
-    
-    axs[2].scatter(np.array(all_predicts[t])[:,0], np.array(all_predicts[t])[:,3], label = "Track" + str(track_count))
-    axs[2].grid(True)
-    axs[2].set_xlabel("Time [s]")
-    axs[2].set_ylabel("$r_z$ [m]")
-    plt.xlim([0,120])
-    track_count += 1
-    axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
-plt.tight_layout()
-plt.show()
-    
-    
+
+
 
 #%% Test 4 Hvor mange af punkterne i vores tracks er rigtige
 
@@ -533,18 +510,22 @@ for t in corrected.keys():
     axs[0].scatter(corrected[t][:,0], corrected[t][:,1], label = "Track" + str(track_count))
     axs[0].grid(True)
     axs[0].set_ylabel("$r_y$ [m]")
+    axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     
     axs[1].scatter(corrected[t][:,0], corrected[t][:,2], label = "Track" + str(track_count))
     axs[1].grid(True)
     axs[1].set_ylabel("$r_y$ [m]")
+    axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     
     axs[2].scatter(corrected[t][:,0], corrected[t][:,3], label = "Track" + str(track_count))
     axs[2].grid(True)
     axs[2].set_xlabel("Time [s]")
     axs[2].set_ylabel("$r_z$ [m]")
-    plt.xlim([0,120])
+    axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     track_count += 1
-    axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
+    axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)  
+    
+plt.savefig("test"+str(testnr)+"/corrected"+str(testnr)+"_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+ "k" + "wave_" + str(wavelet) + ".pdf")    
 plt.tight_layout()
 plt.show()
 
@@ -583,8 +564,9 @@ for j,key in enumerate(corrected):
     plt.xlabel("Time [s]")
     plt.ylabel("Distance [m]")
     plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-    plt.savefig("test4/distance_plots_test4_sat" + str(sat[j]) + ".pdf")
+    plt.savefig("test"+str(testnr)+"/distance_plots_test"+str(testnr)+"_sat" + str(sat[j]) +"snr_" + str(snr) + "NFFT" + str(NFFT)[:2] +  "wave_" + str(wavelet) + ".pdf")
     plt.show()
+
 
 
 mse_temp = np.zeros((2, len(mse)))
@@ -592,5 +574,19 @@ MSE = []
 for i,x in enumerate(mse):
     mse_temp[1][i] = mse[x]
     mse_temp[0][i] = sat[i]
-    
+
+
 mse_temp = mse_temp.T[mse_temp.T[:, 0].argsort()[::1]].T
+if testnr == 4:
+    barlist = plt.bar(mse_temp[0], mse_temp[1], align='center', width = 0.5)
+    barlist[0].set_color('b')
+    barlist[1].set_color('orange')
+    barlist[2].set_color('g')
+    barlist[3].set_color('r')
+    barlist[4].set_color('purple')
+    plt.xticks(mse_temp[0], ['Sat 1','Sat 2','Sat 3','Sat 4','Sat 5'], rotation=20)
+    plt.savefig("test4/MSE.pdf")
+#plt.yscale('log')
+#plt.locator_params(nbins=3, axis='y')
+if testnr == 5:
+    np.save("test5/MSE_snr_" + str(snr) + str(NFFT)[:2] + "wave_" + str(wavelet), mse_temp) #Gemmer MSE til test 5
