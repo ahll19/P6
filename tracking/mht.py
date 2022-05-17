@@ -4,7 +4,7 @@ import numpy as np
 from itertools import product
 from scipy import special
 import matplotlib.pyplot as plt
-
+import pywt
 sys.path.insert(1, os.getcwd())
 import tracking as tr
 from kalman_help_me import KalmanGating
@@ -20,7 +20,7 @@ mu = 3.986004418e14
 snr = 20
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
-NFFT = 50000
+NFFT = 15000
 
 # Intermediate functions ------------------------------------------------------
 def __predict(m0, m1):
@@ -217,7 +217,7 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None):
                     d = (x - m1[1:]).T @ np.linalg.inv(m) @ (x - m1[1:])
                     threshold = args[1]
                     #print((x - m1[1:]),np.linalg.inv(m),d)
-                    if np.sqrt(d) < threshold:
+                    if d < threshold:
                         mn_hyp.append(hyp_table[0, row, col])
                         if [i,int(hyp_table[0, row, col])] not in kalman_info:
                             kalman_info.append([i,int(hyp_table[0, row, col])])
@@ -386,10 +386,24 @@ for i in range(len(timesort_xyz)):
     most_likely_hyp = iter_results[1][0][:, 0]
     for k, t in enumerate(most_likely_hyp):
         tracks[str(int(t))].append(timesort_xyz[i][int(k)])
+        if len(tracks[str(int(t))]) >=20 and str(int(t)) != "0":
+            coeffs_x = pywt.wavedec(np.array(tracks[str(int(t))])[:,1], 'db4', level=pywt.dwt_max_level(len(tracks[str(int(t))]), 'db4')) 
+            coeffs_y= pywt.wavedec(np.array(tracks[str(int(t))])[:,2], 'db4', level=pywt.dwt_max_level(len(tracks[str(int(t))]), 'db4')) 
+            coeffs_z = pywt.wavedec(np.array(tracks[str(int(t))])[:,3], 'db4', level=pywt.dwt_max_level(len(tracks[str(int(t))]), 'db4')) 
+            coeffs_x[-1][abs(coeffs_x[-1]) > 1] = 0
+            coeffs_y[-1][abs(coeffs_y[-1]) > 1] = 0
+            coeffs_z[-1][abs(coeffs_z[-1]) > 1] = 0
+            x_coor = pywt.waverec(coeffs_x, 'db4')
+            y_coor = pywt.waverec(coeffs_y, 'db4')
+            z_coor = pywt.waverec(coeffs_z, 'db4')
+            for j in range(0,len(tracks[str(int(t))])):
+                tracks[str(int(t))][j][1] = x_coor[j]
+                tracks[str(int(t))][j][2] = y_coor[j]
+                tracks[str(int(t))][j][3] = z_coor[j]
 
 
 # %% 
-s_w = np.eye(3) @ np.array([1]*3)
+s_w = 0.001*np.eye(3) @ np.array([1]*3)
 m_pred = 2.01*np.eye(3)
 k_gain = m_pred @ np.linalg.inv(s_w + m_pred)
 corrected = dict()
@@ -533,7 +547,7 @@ for t in corrected.keys():
 plt.tight_layout()
 plt.show()
 
-'''
+
 mse = {}
 dist_plot = {}
 for j,key in enumerate(corrected):
@@ -565,5 +579,5 @@ for j,key in enumerate(corrected):
     
     plt.plot(track_compare[:,0],dist_plot[key],color="b")
     plt.show()
-'''
-    
+
+print(mse[str(51)])
