@@ -18,10 +18,10 @@ mu = 3.986004418e14
 testnr = 5
 wavelet = True
 # Used in calculating hyp proba.
-snr = 10
+snr = 20
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
-NFFT = 50000
+NFFT = 15000
 
 # Intermediate functions ------------------------------------------------------
 def __predict(m0, m1):
@@ -409,7 +409,7 @@ s_w = 0.001*np.eye(3) @ np.array([1]*3)
 m_pred = 2.01*np.eye(3)
 k_gain = m_pred @ np.linalg.inv(s_w + m_pred)
 corrected = dict()
-"""
+
 for key in all_predicts:
     # We cut off 3 indeces from track, cause weird stuff is hapenning
     # make sure it's the right points we cut off
@@ -425,7 +425,6 @@ for key in all_predicts:
     # Transposing cuz dimensions are weird
     corrected[key] = np.column_stack((t, predict + (k_gain @ (track - predict).T).T))
 
-"""
 #%% plot test 4
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
@@ -436,7 +435,7 @@ fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",f
 size = 10
 track_count = 1
 for i in range(1, len(time_xyz)):
-    if len(tracks[str(i)]) >= 2:
+    if len(tracks[str(i)]) >= 10:
         axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], label = "Track" + str(track_count), s = size)
         axs[0].grid(True)
         axs[0].set_ylabel("$r_y$ [m]")
@@ -589,4 +588,4 @@ if testnr == 4:
 #plt.yscale('log')
 #plt.locator_params(nbins=3, axis='y')
 if testnr == 5:
-    np.save("test5/MSE_snr_" + str(snr) + str(NFFT)[:2] + "wave_" + str(wavelet), mse_temp) #Gemmer MSE til test 5
+    np.save("test5/MSE_snr_" + str(snr) + "NNFT_" + str(NFFT)[:2] + "wave_" + str(wavelet), mse_temp) #Gemmer MSE til test 5
