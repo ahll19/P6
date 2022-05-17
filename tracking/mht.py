@@ -16,8 +16,9 @@ total_tracks = 0
 # wiki "standard gravitational parameter"
 mu = 3.986004418e14
 
+wavelet = False
 # Used in calculating hyp proba.
-snr = 20
+snr = 50
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
 NFFT = 15000
@@ -340,7 +341,7 @@ data_ = np.concatenate((data_, _data[5]))
 data = data_[data_[:, 0].argsort()]
 
 data = data[:]
-#data = np.loadtxt("data4.txt") #For test 4
+data = np.loadtxt("data4.txt") #For test 4
 time_xyz = tr.conversion(data)
 timesort_xyz = tr.time_slice(time_xyz) # point sorted by time [t, x, y, z]
 # Testing the code ------------------------------------------------------------
@@ -386,7 +387,7 @@ for i in range(len(timesort_xyz)):
     most_likely_hyp = iter_results[1][0][:, 0]
     for k, t in enumerate(most_likely_hyp):
         tracks[str(int(t))].append(timesort_xyz[i][int(k)])
-        if len(tracks[str(int(t))]) >=20 and str(int(t)) != "0":
+        if len(tracks[str(int(t))]) >=20 and str(int(t)) != "0" and wavelet:
             coeffs_x = pywt.wavedec(np.array(tracks[str(int(t))])[:,1], 'db4', level=pywt.dwt_max_level(len(tracks[str(int(t))]), 'db4')) 
             coeffs_y= pywt.wavedec(np.array(tracks[str(int(t))])[:,2], 'db4', level=pywt.dwt_max_level(len(tracks[str(int(t))]), 'db4')) 
             coeffs_z = pywt.wavedec(np.array(tracks[str(int(t))])[:,3], 'db4', level=pywt.dwt_max_level(len(tracks[str(int(t))]), 'db4')) 
@@ -547,7 +548,7 @@ for t in corrected.keys():
 plt.tight_layout()
 plt.show()
 
-
+sat = [2,3, 1, 5, 4]
 mse = {}
 dist_plot = {}
 for j,key in enumerate(corrected):
@@ -578,6 +579,18 @@ for j,key in enumerate(corrected):
     dist_plot[key] = dist_arr
     
     plt.plot(track_compare[:,0],dist_plot[key],color="b")
+    plt.title("True Orbit VS Kalamn")
+    plt.xlabel("Time [s]")
+    plt.ylabel("Distance [m]")
+    plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    plt.savefig("test4/distance_plots_test4_sat" + str(sat[j]) + ".pdf")
     plt.show()
 
-print(mse[str(51)])
+
+mse_temp = np.zeros((2, len(mse)))
+MSE = []
+for i,x in enumerate(mse):
+    mse_temp[1][i] = mse[x]
+    mse_temp[0][i] = sat[i]
+    
+mse_temp = mse_temp.T[mse_temp.T[:, 0].argsort()[::1]].T
