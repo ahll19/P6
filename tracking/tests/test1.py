@@ -87,23 +87,26 @@ for i, dat in enumerate(data_sliced):
 # %% Plot the data
 xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
 _xyz = ["x", "y", "z"]
-for i in range(3):
-    for j, track in enumerate(data):
-        state = np.array(kalman_filters[j].states_corr)
+colors = [u'#1f77b4', u'#ff7f0e', u'#2ca02c', u'#d62728',
+          u'#9467bd', u'#8c564b', u'#e377c2', u'#7f7f7f', u'#bcbd22', u'#17becf']
+c_colors = [u'#e0884b', u'#0080f1', u'#d35fd3', u'#29d8d7',
+            u'#6b9842', u'#73a9b4', u'#1c883d', u'#808080', u'#4342dd', u'#e84130']
+for j, track in enumerate(data):
+    state = np.array(kalman_filters[j].states_corr)
+    fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
+    ax[-1].set_xlabel(r"Time $[s]$")
+    for i in range(3):
+        ax[i].set_ylabel(xyz[i])
+        ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        ax[i].scatter(times[j], track[:, i], c=colors[j], zorder=1, label="True track", s=12, alpha=0.5)
+        ax[i].plot(times[j], state[1:, i], c=c_colors[j], label="Kalman track", zorder=2, lw=0.8)
 
-        plt.xlabel(r"Time $[s]$")
-        plt.ylabel(xyz[i])
-        plt.tight_layout()
-        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-
-        plt.plot(times[j], track[:, i], c='b', zorder=1, label="True track")
-        plt.plot(times[j], state[1:, i], c='r', ls='-.', label="Kalman track", zorder=2)
-
-        handles, labels = plt.gca().get_legend_handles_labels()
-        by_label = dict(zip(labels, handles))
-        plt.legend(by_label.values(), by_label.keys())
-        plt.savefig(f"test1_figs/tracks_{_xyz[i]}_track{j+1}.pdf")
-        plt.show()
+    handles, labels = ax[1].get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(1.04, 0.8), loc="upper left", borderaxespad=0, fontsize=14)
+    fig.tight_layout()
+    fig.savefig(f"test1_figs/tracks_track{j+1}.pdf", bbox_inches="tight")
+    plt.show()
 
 distances = []
 for i, track in enumerate(data):
@@ -120,10 +123,9 @@ for i, track in enumerate(data):
     dist = np.sqrt(dx * dx + dy * dy + dz * dz)
     mse = np.sum(dist ** 2)/len(dist)
 
-    plt.plot(times[i], dist, c='b')
+    plt.plot(times[i], dist)
     plt.xlabel(r"Time $[s]$")
     plt.ylabel(r"Distance $[m]$")
-    plt.title(f"Track: {i+1}")
     plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     plt.savefig(f"test1_figs/dist_track{i+1}.pdf")
     plt.show()

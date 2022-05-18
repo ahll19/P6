@@ -343,46 +343,24 @@ def run_sim(test_num, plot=True, gate_count=True, mse=True, dist=True, true_dat=
     t2, corrections = t1[1:], np.array(kalman.states_corr)[:, :3]
 
     if plot:
-        # plot the chaos
-        plt.plot(t2, corrections[:, 0], c='r', zorder=3, lw=0.3, label="Estimated track")
-        plt.scatter(sep_data[0][:, 0], sep_data[0][:, 1], marker=".", c='b',
-                    zorder=2, label="True detections")
-        plt.scatter(sep_data[1][:, 0], sep_data[1][:, 1], marker="x", c='k',
-                    alpha=0.5, s=0.5, zorder=1, label="False detections")
-        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        plt.xlabel(r"$t\ [s]$")
-        plt.ylabel(r"$r_x\ [m]$")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("test3_figs/x_" + test_name.strip() + ".pdf")
-        plt.show()
+        colors = [u'#1f77b4', u'#ff7f0e', u'#2ca02c', u'#d62728', u'#9467bd', u'#8c564b', u'#e377c2', u'#7f7f7f', u'#bcbd22', u'#17becf']
+        c_colors = [u'#e0884b', u'#0080f1', u'#d35fd3', u'#29d8d7', u'#6b9842', u'#73a9b4', u'#1c883d', u'#808080', u'#4342dd', u'#e84130']
+        xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
+        fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
+        ax[-1].set_xlabel(r"Time $[s]$")
+        for i in range(3):
+            ax[i].scatter(sep_data[1][:, 0], sep_data[1][:, i+1], marker="x", c='k', alpha=0.7, s=1, zorder=1, label="False detections")
+            ax[i].plot(t2, corrections[:, i], c=c_colors[test_num%5], zorder=3, lw=0.8, label=f"Track {test_num%5 +1}")
+            ax[i].scatter(sep_data[0][:, 0], sep_data[0][:, i+1], c=colors[test_num%5], zorder=2, label=f"True detections {test_num%5 +1}", s=12, alpha=0.5)
+            ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+            ax[i].set_ylabel(xyz[i])
 
-        plt.plot(t2, corrections[:, 1], c='r', zorder=3, lw=0.3, label="Estimated track")
-        plt.scatter(sep_data[0][:, 0], sep_data[0][:, 2], marker=".", c='b',
-                    zorder=2, label="True detections")
-        plt.scatter(sep_data[1][:, 0], sep_data[1][:, 2], marker="x", c='k',
-                    alpha=0.5, s=0.5, zorder=1, label="False detections")
-        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        plt.xlabel(r"$t\ [s]$")
-        plt.ylabel(r"$r_y\ [m]$")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("test3_figs/y_" + test_name.strip() + ".pdf")
+        handles, labels = ax[1].get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(1.04, 0.8), loc="upper left", borderaxespad=0, fontsize=14)
+        fig.tight_layout()
+        fig.savefig(f"test3_figs/{test_name.strip()}.pdf", bbox_inches="tight")
         plt.show()
-
-        plt.plot(t2, corrections[:, 2], c='r', zorder=3, lw=0.3, label="Estimated track")
-        plt.scatter(sep_data[0][:, 0], sep_data[0][:, 3], marker=".", c='b',
-                    zorder=2, label="True detections")
-        plt.scatter(sep_data[1][:, 0], sep_data[1][:, 3], marker="x", c='k',
-                    alpha=0.5, s=0.5, zorder=1, label="False detections")
-        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        plt.xlabel(r"$t\ [s]$")
-        plt.ylabel(r"$r_z\ [m]$")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig("test3_figs/z_" + test_name.strip() + ".pdf")
-        plt.show()
-        print("Saved plots")
 
     if gate_count:
         miss_str = "Number of gate misses: " + str(kalman.num_gate_misees) + "\n"
@@ -422,21 +400,21 @@ def run_sim(test_num, plot=True, gate_count=True, mse=True, dist=True, true_dat=
 
         times = np.array(times) / 10
 
-        plt.plot(times, distances, c='b')
+        plt.plot(times, distances)
         plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        plt.xlabel(r"$t\ [s]$")
-        plt.ylabel(r"$distance\ [m]$")
+        plt.xlabel(r"Time $[s]$")
+        plt.ylabel(r"$Distance\ [m]$")
         plt.tight_layout()
-        plt.savefig("test3_figs/x_dists_" + test_name.strip() + ".pdf")
+        plt.savefig(f"test3_figs/dists_{test_name.strip()}.pdf")
         plt.show()
 
         slice_idx = int(len(times) / 10)
-        plt.plot(times[slice_idx:], distances[slice_idx:], c='b')
+        plt.plot(times[slice_idx:], distances[slice_idx:])
         plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        plt.xlabel(r"$t\ [s]$")
-        plt.ylabel(r"$distance\ [m]$")
+        plt.xlabel(r"Time $[s]$")
+        plt.ylabel(r"Distance $[m]$")
         plt.tight_layout()
-        plt.savefig("test3_figs/x_dists_sliced_" + test_name.strip() + ".pdf")
+        plt.savefig(f"test3_figs/dists_sliced_{test_name.strip()}.pdf")
         plt.show()
 
         with open("test3_results/distances_" + test_name.strip(), "w") as myfile:
@@ -491,5 +469,5 @@ if __name__ == "__main__":
 
     for i in range(30):
         print("=================================\n")
-        run_sim(i, plot=True, gate_count=False, mse=False, true_time=entire_time, true_dat=entire_data)
+        run_sim(i, true_time=entire_time, true_dat=entire_data)
         print("=================================\n")

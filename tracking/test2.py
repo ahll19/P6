@@ -16,7 +16,7 @@ for track in tracks:
 print("Imported data")
 
 for snr in snrs:
-    for track in tracks:
+    for track_idx, track in enumerate(tracks):
         entire_orbit_converted = entire_orbit_converted_dict[track]
         data_name = f"snr{snr}/truth{track}.txt"
         data_import = np.array(tr.import_data(data_name)).T
@@ -34,14 +34,21 @@ for snr in snrs:
         state = np.array(kf.states_corr)[:, :3]
         _xyz = ["x", "y", "z"]
         xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
+        fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
+        ax[-1].set_xlabel(r"Time $[s]$")
+        colors = [u'#1f77b4', u'#ff7f0e', u'#2ca02c', u'#d62728', u'#9467bd', u'#8c564b', u'#e377c2', u'#7f7f7f', u'#bcbd22', u'#17becf']
+        c_colors = [u'#e0884b', u'#0080f1', u'#d35fd3', u'#29d8d7', u'#6b9842', u'#73a9b4', u'#1c883d', u'#808080', u'#4342dd', u'#e84130']
         for i in range(3):
-            plt.scatter(data_converted[:, 0], data_converted[:, i+1], s=4, zorder=1, label="Detections", c='b')
-            plt.plot(data_converted[:-1, 0], state[:, i], lw=0.6, zorder=2, label="Track", c='r')
-            plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-            plt.xlabel(r"Time $[s]$")
-            plt.ylabel(xyz[i])
-            plt.savefig(f"test2_figs/track{track}_snr{snr}_{_xyz[i]}.pdf")
-            plt.show()
+            ax[i].scatter(data_converted[:, 0], data_converted[:, i+1], s=12, zorder=1, label="Detections", c=colors[track_idx], alpha=0.5)
+            ax[i].plot(data_converted[:-1, 0], state[:, i], lw=0.8, zorder=2, label=f"Track {track_idx+1}", c=c_colors[track_idx])
+            ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+            ax[i].set_ylabel(xyz[i])
+        handles, labels = ax[1].get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(1.04, 0.8), loc="upper left", borderaxespad=0, fontsize=14)
+        fig.tight_layout()
+        fig.savefig(f"test2_figs/track{track}_snr{snr}.pdf", bbox_inches="tight")
+        plt.show()
 
         equal_times = []
         equal_idxs = []

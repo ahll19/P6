@@ -98,8 +98,8 @@ for name in entire_orbit_names:
     print(f"Imported {name}")
 
 # %%
-snrs = [20]
-nffts = [50]
+snrs = [10, 20, 50]
+nffts = [15, 50]
 results = []
 
 _xyz = ["x", "y", "z"]
