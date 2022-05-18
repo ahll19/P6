@@ -1,0 +1,32 @@
+# Colors for detections
+colors = [u'#1f77b4', u'#ff7f0e', u'#2ca02c', u'#d62728', u'#9467bd', u'#8c564b', u'#e377c2', u'#7f7f7f', u'#bcbd22', u'#17becf']
+
+# Colors for tracks
+c_colors = [u'#e0884b', u'#0080f1', u'#d35fd3', u'#29d8d7', u'#6b9842', u'#73a9b4', u'#1c883d', u'#808080', u'#4342dd', u'#e84130']
+
+# Plotting all detections at the start of each test:
+xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
+fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
+for i in range(3):
+	ax[i].scatter(detections_time, detections, marker="x", s=1, c='k', alpha=0.7)
+	ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+	ax[i].set_ylabel(xyz[i])
+ax[-1].set_xlabel(r"Time $[s]$")
+fig.tight_layout()
+fig.savefig("")
+
+# Plotting the tracks and detections
+fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
+    for i in range(3):
+        for j in range(5):
+            ax[i].scatter(false_detection_time, false_detection_data[i], label="False detections", marker="x", s=1, c='k', zorder=1, alpha=0.7)
+            ax[i].plot(track_time, track_data[i], label=f"Track {j + 1}", c=c_colors[j], zorder=3, lw=0.8)
+            ax[i].scatter(true_detection_time, true_detection_data[i], label=f"True detections {j + 1}", s=12, c=colors[j], zorder=2, alpha=0.5)
+            ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+            ax[i].set_ylabel(xyz[i - 1])
+    ax[-1].set_xlabel(r"Time $[s]$")
+    handles, labels = ax[1].get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(1.04, 0.8), loc="upper left", borderaxespad=0, fontsize=14)
+    fig.tight_layout()
+    fig.savefig("", bbox_inches="tight")
