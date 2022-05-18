@@ -96,11 +96,12 @@ for i in range(3):
         plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
 
         plt.plot(times[j], track[:, i], c='b', zorder=1, label="True track")
-        plt.plot(times[j], state[1:, i], c='r', ls='-.', label="Kalman track")
+        plt.plot(times[j], state[1:, i], c='r', ls='-.', label="Kalman track", zorder=2)
 
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = dict(zip(labels, handles))
     plt.legend(by_label.values(), by_label.keys())
+    plt.savefig(f"test4_figs/tracks_{_xyz[i]}.pdf")
     plt.show()
 
 distances = []

@@ -100,7 +100,7 @@ if __name__ == "__main__":
     snrs = [10, 20, 50]
     nffts = [15, 50]
     results = []
-    xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
+
     _xyz = ["x", "y", "z"]
 
     for snr in snrs:

@@ -1,143 +1,69 @@
-# Testen er udført med koden som den var ved commit:
-#   1b63506736e85081a8b8d4e080ab7a6757cab0b0
 import numpy as np
-import os, sys
 import matplotlib.pyplot as plt
-import importlib
+import kalman_gating as kg
 import tracking as tr
 
 
-importlib.reload(tr)
+snrs = [10, 20, 50]
+tracks = list(range(1, 6))
+entire_orbit_converted_dict = dict()
 
-# %%
-# specificer navne for test data
-entire_names = ["snr10/entireOrbit" + str(i) + ".txt" for i in range(1, 6)]
-detect_names_10 = ["snr10/truth" + str(i) + ".txt" for i in range(1, 6)]
-detect_names_20 = ["snr20/truth" + str(i) + ".txt" for i in range(1, 6)]
-detect_names_50 = ["snr50/truth" + str(i) + ".txt" for i in range(1, 6)]
+for track in tracks:
+    entire_obit_name = f"snr50/entireOrbit{track}.txt"
+    entire_orbit_import = np.array(tr.import_data(entire_obit_name)).T
+    entire_orbit_converted_dict[track] = tr.conversion(entire_orbit_import)
 
-# kør velocity algorithm på test dataen
-entire_velocity = [tr.velocity_algo(name) for name in entire_names]
-detect_velocity_10 = [tr.velocity_algo(name) for name in detect_names_10]
-detect_velocity_20 = [tr.velocity_algo(name) for name in detect_names_20]
-detect_velocity_50 = [tr.velocity_algo(name) for name in detect_names_50]
+print("Imported data")
 
-# %%
-# sæt identitet til alle covariance gæt
-cov_w, cov_u, M_initial = [np.eye(6)] * 3
+for snr in snrs:
+    for track in tracks:
+        entire_orbit_converted = entire_orbit_converted_dict[track]
+        data_name = f"snr{snr}/truth{track}.txt"
+        data_import = np.array(tr.import_data(data_name)).T
+        data_converted = tr.conversion(data_import)
+        mults = [1, 1/25, 1]
+        su, sw, m_init = [np.eye(6) * m for m in mults]
+        x_init, x_1 = data_converted[0], data_converted[1]
+        kf = kg.KalmanGating(su, sw, x_init, m_init)
+        kf.init_gate(x_1)
+        for j in range(2, data_converted.shape[0]):
+            kf.prediction(append_prediction=True)
+            point = kf.gate([data_converted[j]])
+            kf.observation(point)
 
-# sæt initial guesses for x
-x_init_10 = [res[0][0, :] for res in detect_velocity_10]
-x_init_20 = [res[0][0, :] for res in detect_velocity_20]
-x_init_50 = [res[0][0, :] for res in detect_velocity_50]
+        state = np.array(kf.states_corr)[:, :3]
+        _xyz = ["x", "y", "z"]
+        xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
+        for i in range(3):
+            plt.scatter(data_converted[:, 0], data_converted[:, i+1], s=4, zorder=1, label="Detections", c='b')
+            plt.plot(data_converted[:-1, 0], state[:, i], lw=0.6, zorder=2, label="Track", c='r')
+            plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+            plt.xlabel(r"Time $[s]$")
+            plt.ylabel(xyz[i])
+            plt.show()
 
-# sæt state, dt, og t for alle satelliter
-state_10 = [res[0] for res in detect_velocity_10]
-state_20 = [res[0] for res in detect_velocity_20]
-state_50 = [res[0] for res in detect_velocity_50]
-dt_10 = [res[1] for res in detect_velocity_10]
-dt_20 = [res[1] for res in detect_velocity_20]
-dt_50 = [res[1] for res in detect_velocity_50]
-t_10 = [res[2] for res in detect_velocity_10]
-t_20 = [res[2] for res in detect_velocity_20]
-t_50 = [res[2] for res in detect_velocity_50]
+        equal_times = []
+        equal_idxs = []
+        for t in data_converted[:, 0]:
+            _idx = np.where(t == entire_orbit_converted[:, 0])[0]
+            if len(_idx) == 1:
+                idx = int(_idx)
+                equal_idxs.append(idx)
+                equal_times.append(t)
+        _ = equal_idxs.pop(0)
+        equal_idxs = np.array(equal_idxs)
 
-# initialize kalman filtrerne
-kalman_10 = []
-kalman_20 = []
-kalman_50 = []
+        diff = state - entire_orbit_converted[equal_idxs, 1:]
+        dist = np.sqrt(np.sum(diff**2, axis=1))
+        mse = np.sum(dist**2)/len(dist)
 
-for i in range(5):
-    filter_10 = tr.Kalman(cov_u, cov_w, x_init_10[i], M_initial, dt_10[i])
-    filter_20 = tr.Kalman(cov_u, cov_w, x_init_20[i], M_initial, dt_20[i])
-    filter_50 = tr.Kalman(cov_u, cov_w, x_init_50[i], M_initial, dt_50[i])
+        plt.plot(equal_times[1:], dist)
+        plt.xlabel(r"Time $[s]$")
+        plt.ylabel(r"Distance $[m]$")
+        plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        plt.show()
 
-    kalman_10.append(filter_10)
-    kalman_20.append(filter_20)
-    kalman_50.append(filter_50)
+        with open(f"test2_results/snr{snr}_track{track}_mse.txt", "w") as my_file:
+            my_file.write(str(mse))
 
-# %%
-# kør simuleringen for alt dataen
-for i in range(5):
-    kalman_10[i].run_sim(state_10[i])
-    kalman_20[i].run_sim(state_20[i])
-    kalman_50[i].run_sim(state_50[i])
-
-# %%
-# plot dataen
-for i in range(5):
-    # hent data
-    names_10, vals_10 = kalman_10[i].get_data()
-    names_20, vals_20 = kalman_20[i].get_data()
-    names_50, vals_50 = kalman_50[i].get_data()
-
-    # lav og gem plots
-    savestr_10 = "test2/track" + str(i + 1) + "_snr10"
-    savestr_20 = "test2/track" + str(i + 1) + "_snr20"
-    savestr_50 = "test2/track" + str(i + 1) + "_snr50"
-
-    tr.plot_data(vals_10[0], t_10[i], "Kalman",
-                 entire_velocity[i][0], entire_velocity[i][2], "True orbit",
-                 1.5, savename=savestr_10)
-
-    tr.plot_data(vals_20[0], t_20[i], "Kalman",
-                 entire_velocity[i][0], entire_velocity[i][2], "True orbit",
-                 1.5, savename=savestr_20)
-
-    tr.plot_data(vals_50[0], t_50[i], "Kalman",
-                 entire_velocity[i][0], entire_velocity[i][2], "True orbit",
-                 1.5, savename=savestr_50)
-
-
-# %%
-# plot MSE og gem
-mse_string_10 = ""
-mse_string_20 = ""
-mse_string_50 = ""
-
-for i in range(5):
-    # hent data
-    names_10, vals_10 = kalman_10[i].get_data()
-    names_20, vals_20 = kalman_20[i].get_data()
-    names_50, vals_50 = kalman_50[i].get_data()
-
-    # find MSE
-    mse_10, dist_10 = tr.track_MSE(vals_10[1], entire_velocity[i][0], t_10[i], entire_velocity[i][2])
-    mse_20, dist_20 = tr.track_MSE(vals_20[1], entire_velocity[i][0], t_20[i], entire_velocity[i][2])
-    mse_50, dist_50 = tr.track_MSE(vals_50[1], entire_velocity[i][0], t_50[i], entire_velocity[i][2])
-
-    # strings til at gemme plots og MSE data
-    mse_string_10 += "SNR10 Track number " + str(i + 1) + " MSE: " + str(mse_10) + "\n"
-    mse_string_20 += "SNR20 Track number " + str(i + 1) + " MSE: " + str(mse_20) + "\n"
-    mse_string_50 += "SNR50 Track number " + str(i + 1) + " MSE: " + str(mse_50) + "\n"
-    mse_save_string_10 = "test2/snr10_distanceplot_track" + str(i + 1) + ".pdf"
-    mse_save_string_20 = "test2/snr20_distanceplot_track" + str(i + 1) + ".pdf"
-    mse_save_string_50 = "test2/snr50_distanceplot_track" + str(i + 1) + ".pdf"
-
-    # lav og gem plots
-    plt.plot(t_10[i], dist_10)
-    plt.xlabel("Time [s]")
-    plt.ylabel("Distance [m]")
-    plt.savefig(mse_save_string_10)
-    plt.show()
-
-    plt.plot(t_20[i], dist_20)
-    plt.xlabel("Time [s]")
-    plt.ylabel("Distance [m]")
-    plt.savefig(mse_save_string_20)
-    plt.show()
-
-    plt.plot(t_50[i], dist_50)
-    plt.xlabel("Time [s]")
-    plt.ylabel("Distance [m]")
-    plt.savefig(mse_save_string_50)
-    plt.show()
-
-with open('test2/snr10_MSE.txt', "w") as myfile:
-    myfile.write(mse_string_10)
-
-with open('test2/snr20_MSE.txt', "w") as myfile:
-    myfile.write(mse_string_20)
-
-with open('test2/snr50_MSE.txt', "w") as myfile:
-    myfile.write(mse_string_50)
+        print(f"Did snr {snr} for track {track}")
