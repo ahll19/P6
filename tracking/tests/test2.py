@@ -40,6 +40,7 @@ for snr in snrs:
             plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
             plt.xlabel(r"Time $[s]$")
             plt.ylabel(xyz[i])
+            plt.savefig(f"test2_figs/track{track}_snr{snr}_{_xyz[i]}.pdf")
             plt.show()
 
         equal_times = []
@@ -61,6 +62,7 @@ for snr in snrs:
         plt.xlabel(r"Time $[s]$")
         plt.ylabel(r"Distance $[m]$")
         plt.ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        plt.savefig(f"test2_figs/track{track}_snr{snr}_mse.pdf")
         plt.show()
 
         with open(f"test2_results/snr{snr}_track{track}_mse.txt", "w") as my_file:
