@@ -8,7 +8,7 @@ snr20NFFT50 = np.load("MSE_snr_20NNFT_50wave_True.npy")[1]
 
 
 data = [snr50NFFT15, snr20NFFT15, snr50NFFT50, snr20NFFT50 ]
-xlabels = ["SNR 50, NNFT 15k","SNR 20, NNFT 15k", "SNR 20, NNFT 50k", "SNR 20, NNFT 50k"]
+xlabels = ["SNR 50, NNFT 15k","SNR 20, NNFT 15k", "SNR 50, NNFT 50k", "SNR 20, NNFT 50k"]
 
 dim = len(data[0])
 w = 0.75
@@ -23,6 +23,7 @@ for i in range(len(data[0])):
 plt.legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)
 plt.xticks(x+0.25, xlabels, rotation = 20)
 ax.set_yscale('log')
+plt.ylabel("log(MSE)")
 # ax.set_ylim((10e3, 10e7))
-plt.savefig("MSE_test5.pdf")
+plt.savefig("MSE_test5.pdf", bbox_inches = "tight")
 plt.show()

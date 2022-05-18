@@ -18,10 +18,10 @@ mu = 3.986004418e14
 testnr = 5
 wavelet = True
 # Used in calculating hyp proba.
-snr = 20
+snr = 10
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
-NFFT = 50000
+NFFT = 15000
 yo = []
 all_hyp = [0]
 # Intermediate functions ------------------------------------------------------
@@ -454,7 +454,7 @@ fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",f
 size = 10
 track_count = 1
 for i in range(1, len(time_xyz)):
-    if len(tracks[str(i)]) >= 10:
+    if len(tracks[str(i)]) >= 2:
         axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], label = "Track" + str(track_count), s = size)
         axs[0].grid(True)
         axs[0].set_ylabel("$r_y$ [m]")
