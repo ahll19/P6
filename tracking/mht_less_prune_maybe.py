@@ -18,10 +18,10 @@ mu = 3.986004418e14
 testnr = 5
 wavelet = True
 # Used in calculating hyp proba.
-snr = 10
+snr = 50
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
-NFFT = 15000
+NFFT = 50000
 yo = []
 all_hyp = [0]
 # Intermediate functions ------------------------------------------------------
@@ -65,10 +65,10 @@ def __N_pdf(mean, Sig_inv):
     return (part1) - (part2)
 
 
-def __beta_density(NFFT, n):
+def __beta_density(NFFT, N_NT):
     n_FA = int(NFFT * np.exp(-10))
     beta_FT = n_FA / (4.54*10**16) + 1/10**20
-    beta_NT = (n-n_FA) / (4.54*10**16) + 1/10**20
+    beta_NT = (N_NT) / (4.54*10**16) + 1/10**20
     return beta_FT, beta_NT
 
 
@@ -98,16 +98,18 @@ def __Pik(H, P_g=1, P_D=0.2, kal_info=None, N_TGT = 2, old_probs = None):
     """
     global NFFT, yo
     #NFFT = 15000
-    beta_FT, beta_NT = __beta_density(NFFT, len(H))
-    if type(old_probs) != int :
+    
+    if type(old_probs) != int and (old_probs[0].max() - old_probs[0].min()) != 0:
         norm_old_hyp = old_probs[0]
         norm_old = (norm_old_hyp - norm_old_hyp.min())/ (norm_old_hyp.max() - norm_old_hyp.min())
         old_probs[0] = norm_old * np.max(old_probs[0])
     prob = np.zeros(len(H[0]))
     for i, hyp in enumerate(H.T):
+        
         N_FT = np.count_nonzero(hyp == 0)  # Number of false
         N_NT = np.count_nonzero(hyp >= np.max(H) - len(H) + 1)  # Number of known targets in hyp
         N_DT = len(hyp) - N_FT - N_NT  # Number of prioer targets in given hyp
+        beta_FT, beta_NT = __beta_density(NFFT, N_NT)
         #prob[i] = np.log((P_D ** N_DT * (1 - P_D) ** (N_TGT - N_DT) * beta_FT ** N_FT * beta_NT ** N_NT))
         prob[i] = np.log(P_D)*N_DT + np.log(1 - P_D)*(N_TGT - N_DT) + np.log( beta_FT)* N_FT + np.log(beta_NT) * N_NT
         P_g = 0
@@ -125,7 +127,7 @@ def __Pik(H, P_g=1, P_D=0.2, kal_info=None, N_TGT = 2, old_probs = None):
 
                 product += __N_pdf(y_t - y_hat_t, Sig_inv)
                 P_g_index = np.where(old_probs == item)[1]
-                P_g += np.sum(old_probs[0,P_g_index])
+                P_g -= np.sum(old_probs[0,P_g_index])
                 
             
             prob[i] += product + 0 #P_g
@@ -138,7 +140,7 @@ def __Pik(H, P_g=1, P_D=0.2, kal_info=None, N_TGT = 2, old_probs = None):
     return prob_hyp
 
 
-def __prune(prob_hyp, th=0.1, N_h=1):
+def __prune(prob_hyp, th=0.1, N_h=2):
     if len(prob_hyp[0]) >= N_h:
         prob_hyp = prob_hyp[:, :N_h]
     return prob_hyp
@@ -372,9 +374,11 @@ for i in range(len(timesort_xyz)):
     if i > 0:
         for ii in range(len(timesort_xyz[i])):
             for iii in range(len(timesort_xyz[i-1])):
-                dist_travel = (timesort_xyz[i][ii][1:] - timesort_xyz[i-1][iii][1:])*0.1
+                dist_travel = (timesort_xyz[i][ii][1:] - timesort_xyz[i-1][iii][1:])*10
                 if np.linalg.norm(dist_travel) <= 10000:
                     new_points[ii,4:] += dist_travel
+                    timesort_xyz[i-1][iii][1:] = 0
+                    break
     iter_results = iter_tracking(
         old_points, new_points, old_hyp, new_predicts, args=(100000, 10e8),tracks=tracks, old_probs=all_hyp[i-1])
     old_points = iter_results[0]
