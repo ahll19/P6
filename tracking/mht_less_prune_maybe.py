@@ -18,7 +18,7 @@ mu = 3.986004418e14
 testnr = 5
 wavelet = True
 # Used in calculating hyp proba.
-snr = 50
+snr = 20
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
 NFFT = 50000
@@ -127,7 +127,7 @@ def __Pik(H, P_g=1, P_D=0.2, kal_info=None, N_TGT = 2, old_probs = None):
 
                 product += __N_pdf(y_t - y_hat_t, Sig_inv)
                 P_g_index = np.where(old_probs == item)[1]
-                P_g -= np.sum(old_probs[0,P_g_index])
+                P_g += np.sum(old_probs[0,P_g_index])
                 
             
             prob[i] += product + 0 #P_g
@@ -377,10 +377,10 @@ for i in range(len(timesort_xyz)):
                 dist_travel = (timesort_xyz[i][ii][1:] - timesort_xyz[i-1][iii][1:])*10
                 if np.linalg.norm(dist_travel) <= 10000:
                     new_points[ii,4:] += dist_travel
-                    timesort_xyz[i-1][iii][1:] = 0
-                    break
+                    #timesort_xyz[i-1][iii][1:] = 0
+                    #break
     iter_results = iter_tracking(
-        old_points, new_points, old_hyp, new_predicts, args=(100000, 10e8),tracks=tracks, old_probs=all_hyp[i-1])
+        old_points, new_points, old_hyp, new_predicts, args=(80000, 10e8),tracks=tracks, old_probs=all_hyp[i-1])
     old_points = iter_results[0]
     old_hyp = iter_results[1]
     new_predicts = iter_results[2]
@@ -433,15 +433,16 @@ for key in all_predicts:
     # make sure it's the right points we cut off
 
     predict = np.array(all_predicts[key][:])
-    t = predict[:-1, 0]
-    predict = predict[:-1, 1:]
-    key = str(int(key))
-    start = np.where(np.array(tracks[key])[:,0] == round(all_predicts[float(key)][0][0],1))[0][0]
-    end = np.where(np.array(tracks[key])[:,0] == round(all_predicts[float(key)][-2][0],1))[0][0]
-    track = np.array(tracks[key])[start:end+1, 1:]
-
-    # Transposing cuz dimensions are weird
-    corrected[key] = np.column_stack((t, predict + (k_gain[:3,:3] @ (track - predict).T).T))
+    if len(predict) > 4:
+        t = predict[:-1, 0]
+        predict = predict[:-1, 1:]
+        key = str(int(key))
+        start = np.where(np.array(tracks[key])[:,0] == round(all_predicts[float(key)][0][0],1))[0][0]
+        end = np.where(np.array(tracks[key])[:,0] == round(all_predicts[float(key)][-2][0],1))[0][0]
+        track = np.array(tracks[key])[start:end+1, 1:]
+    
+        # Transposing cuz dimensions are weird
+        corrected[key] = np.column_stack((t, predict + (k_gain[:3,:3] @ (track - predict).T).T))
 
 #%% plot test 4
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
@@ -453,7 +454,7 @@ fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",f
 size = 10
 track_count = 1
 for i in range(1, len(time_xyz)):
-    if len(tracks[str(i)]) >= 2:
+    if len(tracks[str(i)]) >= 10:
         axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], label = "Track" + str(track_count), s = size)
         axs[0].grid(True)
         axs[0].set_ylabel("$r_y$ [m]")
@@ -468,7 +469,7 @@ for i in range(1, len(time_xyz)):
         axs[2].set_ylabel("$r_z$ [m]")
         axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         track_count += 1
-        axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
+        #axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
 plt.tight_layout()
 plt.savefig("test"+str(testnr)+"/mht_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k" + "wave_" + str(wavelet) + ".pdf")
 plt.show()
@@ -505,7 +506,7 @@ total_tracks.append(tr.conversion(np.loadtxt("data4_sat3.txt")))
 total_tracks.append(tr.conversion(np.loadtxt("data4_sat1.txt")))
 total_tracks.append(tr.conversion(np.loadtxt("data4_sat5.txt")))
 total_tracks.append(tr.conversion(np.loadtxt("data4_sat4.txt")))
-
+"""
 track_perc = np.zeros(5)
 for count,i in enumerate(all_predicts):
     for j in tracks[str(int(i))]:  
@@ -517,7 +518,7 @@ print("Tables:")
 for i in range(len(track_perc)):
     print(f"Track{i+1}",round(track_perc[i],5))
 print("==========================================")
-
+"""
 #%% Corrections
 track_count = 1
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))

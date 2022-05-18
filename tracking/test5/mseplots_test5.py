@@ -24,4 +24,5 @@ plt.legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize
 plt.xticks(x+0.25, xlabels, rotation = 20)
 ax.set_yscale('log')
 # ax.set_ylim((10e3, 10e7))
+plt.savefig("MSE_test5.pdf")
 plt.show()
