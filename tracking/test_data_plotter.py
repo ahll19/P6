@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import tracking as tr
 
-
 # %% Impot the data which is needed for the plots pt. 1
 entire_orbits_name = ["snr50/entireOrbit" + str(i) + ".txt" for i in range(1, 6)]
 _data = []
@@ -56,8 +55,8 @@ entire_orbit = data_sliced_[abs_min:abs_max]
 
 # %% Impot the data which is needed for the plots pt. 2
 true_detection_10_names = [f"snr10/truth{i}.txt" for i in range(1, 6)]
-true_detection_20_names = [f"snr10/truth{i}.txt" for i in range(1, 6)]
-true_detection_50_names = [f"snr10/truth{i}.txt" for i in range(1, 6)]
+true_detection_20_names = [f"snr20/truth{i}.txt" for i in range(1, 6)]
+true_detection_50_names = [f"snr50/truth{i}.txt" for i in range(1, 6)]
 false_detections_names = [f"nfft_{k}k/false.txt" for k in [15, 50]]
 
 true_detections_10 = []
@@ -65,27 +64,26 @@ true_detections_20 = []
 true_detections_50 = []
 
 for i, name in enumerate(true_detection_10_names):
-    imported = np.array(tr.import_data(name)).T
-    converted = tr.conversion(imported)
+    imported = np.copy(np.array(tr.import_data(name)).T)
+    converted = tr.conversion(np.copy(imported))
     true_detections_10.append(converted)
 
 for i, name in enumerate(true_detection_20_names):
-    imported = np.array(tr.import_data(name)).T
-    converted = tr.conversion(imported)
+    imported = np.copy(np.array(tr.import_data(name)).T)
+    converted = tr.conversion(np.copy(imported))
     true_detections_20.append(converted)
 
 for i, name in enumerate(true_detection_50_names):
-    imported = np.array(tr.import_data(name)).T
-    converted = tr.conversion(imported)
+    imported = np.copy(np.array(tr.import_data(name)).T)
+    converted = tr.conversion(np.copy(imported))
     true_detections_50.append(converted)
 
-
-imported = np.array(tr.import_data(false_detections_names[0])).T
-converted = tr.conversion(imported)
+imported = np.copy(np.array(tr.import_data(false_detections_names[0])).T)
+converted = tr.conversion(np.copy(imported))
 false_detections_15 = converted
 
-imported = np.array(tr.import_data(false_detections_names[1])).T
-converted = tr.conversion(imported)
+imported = np.copy(np.array(tr.import_data(false_detections_names[1])).T)
+converted = tr.conversion(np.copy(imported))
 false_detections_50 = converted
 
 """
@@ -107,121 +105,117 @@ for j in range(5):
 
     ax[-1].set_xlabel(r"Time $[s]$")
     fig.tight_layout()
-    fig.savefig(f"test_data_plots/test1_track{j+1}.pdf", bbox_inches="tight")
+    fig.savefig(f"test_data_plots/test1_track{j + 1}.pdf", bbox_inches="tight")
 
 # %% Plot test 2
 for j in range(5):
     xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
     fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
     for i in range(3):
-        ax[i].scatter(true_detections_10[j][:, 0], true_detections_10[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_10[j][:, 0], true_detections_10[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
 
     ax[-1].set_xlabel(r"Time $[s]$")
     fig.tight_layout()
-    fig.savefig(f"test_data_plots/test2_track{j+1}_snr10.pdf", bbox_inches="tight")
-
+    fig.savefig(f"test_data_plots/test2_track{j + 1}_snr10.pdf", bbox_inches="tight")
 
 for j in range(5):
     xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
     fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
     for i in range(3):
-        ax[i].scatter(true_detections_20[j][:, 0], true_detections_20[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_20[j][:, 0], true_detections_20[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
 
     ax[-1].set_xlabel(r"Time $[s]$")
     fig.tight_layout()
-    fig.savefig(f"test_data_plots/test2_track{j+1}_snr20.pdf", bbox_inches="tight")
-
+    fig.savefig(f"test_data_plots/test2_track{j + 1}_snr20.pdf", bbox_inches="tight")
 
 for j in range(5):
     xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
     fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
     for i in range(3):
-        ax[i].scatter(true_detections_50[j][:, 0], true_detections_50[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_50[j][:, 0], true_detections_50[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
 
     ax[-1].set_xlabel(r"Time $[s]$")
     fig.tight_layout()
-    fig.savefig(f"test_data_plots/test2_track{j+1}_snr50.pdf", bbox_inches="tight")
+    fig.savefig(f"test_data_plots/test2_track{j + 1}_snr50.pdf", bbox_inches="tight")
 
 # %% Plot test 3
 for j in range(5):
     xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
     fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
     for i in range(3):
-        ax[i].scatter(true_detections_10[j][:, 0], true_detections_10[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_10[j][:, 0], true_detections_10[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
     ax[-1].set_xlabel(r"Time $[s]$")
     fig.tight_layout()
-    fig.savefig(f"test_data_plots/test3_track{j+1}_snr10_nfft15.pdf", bbox_inches="tight")
+    fig.savefig(f"test_data_plots/test3_track{j + 1}_snr10_nfft15.pdf", bbox_inches="tight")
 
 for j in range(5):
     xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
     fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
     for i in range(3):
-        ax[i].scatter(true_detections_10[j][:, 0], true_detections_10[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_10[j][:, 0], true_detections_10[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
     ax[-1].set_xlabel(r"Time $[s]$")
     fig.tight_layout()
-    fig.savefig(f"test_data_plots/test3_track{j+1}_snr10_nfft50.pdf", bbox_inches="tight")
-
+    fig.savefig(f"test_data_plots/test3_track{j + 1}_snr10_nfft50.pdf", bbox_inches="tight")
 
 for j in range(5):
     xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
     fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
     for i in range(3):
-        ax[i].scatter(true_detections_20[j][:, 0], true_detections_20[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_20[j][:, 0], true_detections_20[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
     ax[-1].set_xlabel(r"Time $[s]$")
     fig.tight_layout()
-    fig.savefig(f"test_data_plots/test3_track{j+1}_snr20_nfft15.pdf", bbox_inches="tight")
+    fig.savefig(f"test_data_plots/test3_track{j + 1}_snr20_nfft15.pdf", bbox_inches="tight")
 
 for j in range(5):
     xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
     fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
     for i in range(3):
-        ax[i].scatter(true_detections_20[j][:, 0], true_detections_20[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_20[j][:, 0], true_detections_20[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
     ax[-1].set_xlabel(r"Time $[s]$")
     fig.tight_layout()
-    fig.savefig(f"test_data_plots/test3_track{j+1}_snr20_nfft50.pdf", bbox_inches="tight")
-
-
-for j in range(5):
-    xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
-    fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
-    for i in range(3):
-        ax[i].scatter(true_detections_50[j][:, 0], true_detections_50[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        ax[i].set_ylabel(xyz[i])
-    ax[-1].set_xlabel(r"Time $[s]$")
-    fig.tight_layout()
-    fig.savefig(f"test_data_plots/test3_track{j+1}_snr50_nfft15.pdf", bbox_inches="tight")
+    fig.savefig(f"test_data_plots/test3_track{j + 1}_snr20_nfft50.pdf", bbox_inches="tight")
 
 for j in range(5):
     xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
     fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
     for i in range(3):
-        ax[i].scatter(true_detections_50[j][:, 0], true_detections_50[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_50[j][:, 0], true_detections_50[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
     ax[-1].set_xlabel(r"Time $[s]$")
     fig.tight_layout()
-    fig.savefig(f"test_data_plots/test3_track{j+1}_snr50_nfft50.pdf", bbox_inches="tight")
+    fig.savefig(f"test_data_plots/test3_track{j + 1}_snr50_nfft15.pdf", bbox_inches="tight")
+
+for j in range(5):
+    xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
+    fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
+    for i in range(3):
+        ax[i].scatter(true_detections_50[j][:, 0], true_detections_50[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+        ax[i].set_ylabel(xyz[i])
+    ax[-1].set_xlabel(r"Time $[s]$")
+    fig.tight_layout()
+    fig.savefig(f"test_data_plots/test3_track{j + 1}_snr50_nfft50.pdf", bbox_inches="tight")
 
 # %% Plot test 4
 xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
@@ -235,14 +229,13 @@ ax[-1].set_xlabel(r"Time $[s]$")
 fig.tight_layout()
 fig.savefig(f"test_data_plots/test4.pdf", bbox_inches="tight")
 
-
 # %% Plot test 5
 xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
 fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
 for j in range(5):
     for i in range(3):
-        ax[i].scatter(true_detections_10[j][:, 0], true_detections_10[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_10[j][:, 0], true_detections_10[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
 ax[-1].set_xlabel(r"Time $[s]$")
@@ -253,8 +246,8 @@ xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
 fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
 for j in range(5):
     for i in range(3):
-        ax[i].scatter(true_detections_10[j][:, 0], true_detections_10[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_10[j][:, 0], true_detections_10[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
 ax[-1].set_xlabel(r"Time $[s]$")
@@ -265,8 +258,8 @@ xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
 fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
 for j in range(5):
     for i in range(3):
-        ax[i].scatter(true_detections_20[j][:, 0], true_detections_20[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_20[j][:, 0], true_detections_20[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
 ax[-1].set_xlabel(r"Time $[s]$")
@@ -277,8 +270,8 @@ xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
 fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
 for j in range(5):
     for i in range(3):
-        ax[i].scatter(true_detections_20[j][:, 0], true_detections_20[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_20[j][:, 0], true_detections_20[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
 ax[-1].set_xlabel(r"Time $[s]$")
@@ -289,8 +282,8 @@ xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
 fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
 for j in range(5):
     for i in range(3):
-        ax[i].scatter(true_detections_50[j][:, 0], true_detections_50[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_50[j][:, 0], true_detections_50[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_15[:, 0], false_detections_15[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
 ax[-1].set_xlabel(r"Time $[s]$")
@@ -301,8 +294,8 @@ xyz = [r"$r_x\ [m]$", r"$r_y\ [m]$", r"$r_z\ [m]$"]
 fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
 for j in range(5):
     for i in range(3):
-        ax[i].scatter(true_detections_50[j][:, 0], true_detections_50[j][:, i+1], marker="x", s=1, c='k', alpha=0.7)
-        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i+1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(true_detections_50[j][:, 0], true_detections_50[j][:, i + 1], marker="x", s=1, c='k', alpha=0.7)
+        ax[i].scatter(false_detections_50[:, 0], false_detections_50[:, i + 1], marker="x", s=1, c='k', alpha=0.7)
         ax[i].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         ax[i].set_ylabel(xyz[i])
 ax[-1].set_xlabel(r"Time $[s]$")
