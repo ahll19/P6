@@ -191,7 +191,3 @@ for result in results:
 
     print("Saved MSEs")
 
-
-"""
-TILFØJ TEST PLOTS FOR HVER TEST
-"""

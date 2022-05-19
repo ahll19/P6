@@ -447,7 +447,7 @@ def run_sim(test_num, plot=True, gate_count=True, mse=True, dist=True, true_dat=
 
         MSE = sum(square_errors) / len(square_errors)
 
-        with open("test3_results/MSE_" + test_name.strip(), "w") as myfile:
+        with open("test3_results/MSE_" + test_name.replace(" ", "_") + ".txt", "w") as myfile:
             myfile.write(str(MSE))
             print("Saved MSE")
 
@@ -469,5 +469,5 @@ if __name__ == "__main__":
 
     for i in range(30):
         print("=================================\n")
-        run_sim(i, true_time=entire_time, true_dat=entire_data)
+        run_sim(i, true_time=entire_time, true_dat=entire_data, gate_count=False, plot=False, dist=False)
         print("=================================\n")
