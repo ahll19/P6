@@ -13,7 +13,7 @@ for i in range(3):
 	ax[i].set_ylabel(xyz[i])
 ax[-1].set_xlabel(r"Time $[s]$")
 fig.tight_layout()
-fig.savefig("")
+fig.savefig("", bbox_inches="tight")
 
 # Plotting the tracks and detections
 fig, ax = plt.subplots(3, 1, sharex=True, figsize=(14, 10))
