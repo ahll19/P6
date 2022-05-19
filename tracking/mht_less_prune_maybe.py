@@ -451,6 +451,8 @@ fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",f
 
 #V_matlab = np.loadtxt('velocity_xyz_matlab.txt',skiprows=1,delimiter=',')*1000
 
+
+
 size = 10
 track_count = 1
 for i in range(1, len(time_xyz)):
@@ -596,12 +598,13 @@ for i,x in enumerate(mse):
 
 mse_temp = mse_temp.T[mse_temp.T[:, 0].argsort()[::1]].T
 if testnr == 4:
-    barlist = plt.bar(mse_temp[0], mse_temp[1], align='center', width = 0.5)
+    barlist = plt.bar(mse_temp[0]/2, mse_temp[1], align='center', width = 0.5)
     barlist[0].set_color('b')
     barlist[1].set_color('orange')
     barlist[2].set_color('g')
     barlist[3].set_color('r')
     barlist[4].set_color('purple')
+    plt.xlim(1,5)
     plt.xticks(mse_temp[0], ['Sat 1','Sat 2','Sat 3','Sat 4','Sat 5'], rotation=20)
     plt.savefig("test4/MSE.pdf")
 #plt.yscale('log')
