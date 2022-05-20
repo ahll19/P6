@@ -21,10 +21,10 @@ total_tracks = 0
 
 # wiki "standard gravitational parameter"
 mu = 3.986004418e14
-testnr = 2
-wavelet = False
+testnr = 3
+wavelet = True
 # Used in calculating hyp proba.
-snr = 50
+snr = 10
 P_FA = np.exp(-10)
 P_D = 0.5 * special.erfc(special.erfcinv(2 * P_FA) - np.sqrt(snr / 2))
 NFFT = 15000

@@ -9,10 +9,17 @@ sys.path.insert(1, os.getcwd())
 import tracking as tr
 from kalman_help_me import KalmanGating
 
+# Colors for detections
+colors = [u'#1f77b4', u'#ff7f0e', u'#2ca02c', u'#d62728', u'#9467bd', u'#8c564b', u'#e377c2', u'#7f7f7f', u'#bcbd22', u'#17becf']
+
+# Colors for tracks
+c_colors = [u'#e0884b', u'#0080f1', u'#d35fd3', u'#29d8d7', u'#6b9842', u'#73a9b4', u'#1c883d', u'#808080', u'#4342dd', u'#e84130']
+
 # Global variables ------------------------------------------------------------
 # how many tracks have been created
 total_tracks = 0
 
+FA = True
 # wiki "standard gravitational parameter"
 mu = 3.986004418e14
 testnr = 5
@@ -66,6 +73,8 @@ def __N_pdf(mean, Sig_inv):
 
 
 def __beta_density(NFFT, N_NT):
+    if testnr == 4:
+        n_FA = 0
     n_FA = int(NFFT * np.exp(-10))
     beta_FT = n_FA / (4.54*10**16) + 1/10**20
     beta_NT = (N_NT) / (4.54*10**16) + 1/10**20
@@ -98,8 +107,8 @@ def __Pik(H, P_g=1, P_D=0.2, kal_info=None, N_TGT = 2, old_probs = None):
     """
     global NFFT, yo
     #NFFT = 15000
-    
-    if type(old_probs) != int and (old_probs[0].max() - old_probs[0].min()) != 0:
+    check = type(old_probs) != int and (old_probs[0].max() - old_probs[0].min()) != 0
+    if check:
         norm_old_hyp = old_probs[0]
         norm_old = (norm_old_hyp - norm_old_hyp.min())/ (norm_old_hyp.max() - norm_old_hyp.min())
         old_probs[0] = norm_old * np.max(old_probs[0])
@@ -118,19 +127,19 @@ def __Pik(H, P_g=1, P_D=0.2, kal_info=None, N_TGT = 2, old_probs = None):
             y_t, y_hat_t, Sig_inv = 0,0,0
             for j,item in enumerate(hyp):
                 b = [(k, kal_info.index((j,item))) for k, kal_info in enumerate(kal_info) if (j,item) in kal_info]
-                yo.append(kal_info)
                 if len(b) == 0:
                     continue
                 b = b[0][0]
-                
+                yo.append(kal_info[b][1:])
                 y_t, y_hat_t, Sig_inv = kal_info[b][1:]
 
                 product += __N_pdf(y_t - y_hat_t, Sig_inv)
-                P_g_index = np.where(old_probs == item)[1]
-                P_g += np.sum(old_probs[0,P_g_index])
+                if check:
+                    P_g_index = np.where(old_probs == item)[1]
+                    P_g -= np.sum(old_probs[0,P_g_index])/10
                 
-            
-            prob[i] += product + 0 #P_g
+            #print(P_g, product)
+            prob[i] += product + P_g
     prob_hyp = np.vstack((prob, H))
     
     #prob_hyp[0] += np.max(prob_hyp[0])
@@ -327,18 +336,19 @@ def iter_tracking(s0, s1, hyp_table, predictions, args=None, tracks=None, old_pr
 # import data
 imports = ["snr"+str(snr)+"/truth1.txt", "snr"+str(snr)+"/truth2.txt", "snr"+str(snr)+"/truth3.txt", "snr"+str(snr)+"/truth4.txt", "snr"+str(snr)+"/truth5.txt", "nfft_"+str(NFFT)[:2]+"k/false.txt"]
 
-_data = []
-for i, file_ in enumerate(imports):
-    _data.append(np.array(tr.import_data(file_)).T)
+if testnr == 5:
+    _data = []
+    for i, file_ in enumerate(imports):
+        _data.append(np.array(tr.import_data(file_)).T)
+    
+    data_ = np.concatenate((_data[0], _data[1]))
+    data_ = np.concatenate((data_, _data[2]))
+    data_ = np.concatenate((data_, _data[3]))
+    data_ = np.concatenate((data_, _data[4]))
+    data_ = np.concatenate((data_, _data[5]))
+    data = data_[data_[:, 0].argsort()]
 
-data_ = np.concatenate((_data[0], _data[1]))
-data_ = np.concatenate((data_, _data[2]))
-data_ = np.concatenate((data_, _data[3]))
-data_ = np.concatenate((data_, _data[4]))
-data_ = np.concatenate((data_, _data[5]))
-data = data_[data_[:, 0].argsort()]
 
-data = data[:]
 if testnr == 4:
     data = np.loadtxt("data4.txt") #For test 4
 time_xyz = tr.conversion(data)
@@ -367,8 +377,10 @@ for i in range(0,len(time_xyz)+1):
 #%%
 all_predicts = dict()
 for i in range(len(timesort_xyz)):
+    if len(timesort_xyz[i]) == 1:
+        all_hyp.append(0)
+        continue
     new_points = timesort_xyz[i]
-    
     new_vel = np.zeros((len(new_points),3))
     new_points = np.hstack((new_points,new_vel))
     if i > 0:
@@ -447,33 +459,46 @@ for key in all_predicts:
 #%% plot test 4
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position, " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",fontsize=29)
 
 #V_matlab = np.loadtxt('velocity_xyz_matlab.txt',skiprows=1,delimiter=',')*1000
 
 
 
-size = 10
+size = 12
 track_count = 1
 for i in range(1, len(time_xyz)):
     if len(tracks[str(i)]) >= 2:
-        axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], label = "Track" + str(track_count), s = size)
+        axs[0].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,1], s = size, zorder=2, alpha=0.5)
         axs[0].grid(True)
         axs[0].set_ylabel("$r_y$ [m]")
         axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        axs[1].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,2], label = "Track" + str(track_count), s = size)
+        axs[1].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,2], s = size,zorder=2, alpha=0.5)
         axs[1].grid(True)
         axs[1].set_ylabel("$r_y$ [m]")
         axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
-        axs[2].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,3] , label = "Track" +str(track_count), s = size)
+        axs[2].scatter(np.array(tracks[str(i)])[:,0], np.array(tracks[str(i)])[:,3], s = size,zorder=2, alpha=0.5)
         axs[2].grid(True)
         axs[2].set_xlabel("Time [s]")
         axs[2].set_ylabel("$r_z$ [m]")
         axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
         track_count += 1
-        #axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)      
+"""
+for i in range(5):
+    axs[0].scatter(tr.conversion(_data[i].copy())[:,0], tr.conversion(_data[i].copy())[:,1], label=f"Detections{i+1}", s=12, c=c_colors[i], zorder=2, alpha=0.5)
+    axs[1].scatter(tr.conversion(_data[i].copy())[:,0], tr.conversion(_data[i].copy())[:,2], label=f"Detections{i+1}", s=12, c=c_colors[i], zorder=2, alpha=0.5)
+    axs[2].scatter(tr.conversion(_data[i].copy())[:,0], tr.conversion(_data[i].copy())[:,3], label=f"Detections{i+1}", s=12, c=c_colors[i], zorder=2, alpha=0.5)
+"""  
+if FA == True:
+    plot_FA = tr.conversion(_data[5].copy())
+    axs[0].scatter(plot_FA[:,0], plot_FA[:,1], label="False detections", marker="x", s=1, c='k', zorder=1, alpha=0.7)
+    axs[1].scatter(plot_FA[:,0], plot_FA[:,2], label="False detections", marker="x", s=1, c='k', zorder=1, alpha=0.7)
+    axs[2].scatter(plot_FA[:,0], plot_FA[:,3], label="False detections", marker="x", s=1, c='k', zorder=1, alpha=0.7)
+    
 plt.tight_layout()
-plt.savefig("test"+str(testnr)+"/mht_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k" + "wave_" + str(wavelet) + ".pdf")
+handles, labels = axs[1].get_legend_handles_labels()
+by_label = dict(zip(labels, handles))
+fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(1.04, 0.8), loc="upper left", borderaxespad=0, fontsize=14)
+plt.savefig("test"+str(testnr)+"/mht_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+"k" + "wave_" + str(wavelet) + ".pdf", bbox_inches = "tight")
 plt.show()
 
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
@@ -525,28 +550,41 @@ print("==========================================")
 track_count = 1
 fig, axs = plt.subplots(3,1, sharex=True,sharey=False,figsize=(14,10))
 fig.subplots_adjust(left=0.1, wspace=0.3)
-fig.suptitle("Position(Corrections), " + "SNR =" + str(snr) +", NFFT =" + str(NFFT)[:2]+"k",fontsize=29)     
+#fig.suptitle("Position(Corrections), Sat 2," + "SNR =" + str(snr),fontsize=29)     
 for t in corrected.keys():
-    axs[0].scatter(corrected[t][:,0], corrected[t][:,1], label = "Track" + str(track_count))
+    axs[0].plot(corrected[t][:,0], corrected[t][:,1], label = "Track" + str(track_count), c=colors[track_count-1], zorder=3, lw = 0.8)
     axs[0].grid(True)
     axs[0].set_ylabel("$r_y$ [m]")
     axs[0].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     
-    axs[1].scatter(corrected[t][:,0], corrected[t][:,2], label = "Track" + str(track_count))
+    axs[1].plot(corrected[t][:,0], corrected[t][:,2], label = "Track" + str(track_count), c=colors[track_count-1], zorder=3, lw = 0.8)
     axs[1].grid(True)
     axs[1].set_ylabel("$r_y$ [m]")
     axs[1].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
     
-    axs[2].scatter(corrected[t][:,0], corrected[t][:,3], label = "Track" + str(track_count))
+    axs[2].plot(corrected[t][:,0], corrected[t][:,3], label = "Track" + str(track_count), c=colors[track_count-1], zorder=3, lw = 0.8)
     axs[2].grid(True)
     axs[2].set_xlabel("Time [s]")
     axs[2].set_ylabel("$r_z$ [m]")
     axs[2].ticklabel_format(axis="y", style="sci", scilimits=(0, 0))
+    true_data = np.array(tracks[t])
+    axs[0].scatter(true_data[:,0], true_data[:,1], label=f"Detections{track_count}", s=12, c=c_colors[track_count - 1], zorder=2, alpha=0.5)
+    axs[1].scatter(true_data[:,0], true_data[:,2], label=f"Detections{track_count}", s=12, c=c_colors[track_count - 1], zorder=2, alpha=0.5)
+    axs[2].scatter(true_data[:,0], true_data[:,3], label=f"Detections{track_count}", s=12, c=c_colors[track_count - 1], zorder=2, alpha=0.5)
     track_count += 1
-    axs[1].legend(bbox_to_anchor=(1.04,0.8), loc="upper left", borderaxespad=0,fontsize=14)  
-    
-plt.savefig("test"+str(testnr)+"/corrected"+str(testnr)+"_xyz_snr"+str(snr)+"_"+str(NFFT)[:2]+ "k" + "wave_" + str(wavelet) + ".pdf")    
+
+if FA == True:
+    plot_FA = tr.conversion(_data[5].copy())
+    axs[0].scatter(plot_FA[:,0], plot_FA[:,1], label="False detections", marker="x", s=1, c='k', zorder=1, alpha=0.7)
+    axs[1].scatter(plot_FA[:,0], plot_FA[:,2], label="False detections", marker="x", s=1, c='k', zorder=1, alpha=0.7)
+    axs[2].scatter(plot_FA[:,0], plot_FA[:,3], label="False detections", marker="x", s=1, c='k', zorder=1, alpha=0.7)
+
+
 plt.tight_layout()
+handles, labels = axs[1].get_legend_handles_labels()
+by_label = dict(zip(labels, handles))
+fig.legend(by_label.values(), by_label.keys(), bbox_to_anchor=(1.04, 0.8), loc="upper left", borderaxespad=0, fontsize=14)
+plt.savefig("test"+str(testnr)+"/corrected"+str(testnr)+"_xyz_snr"+str(snr)+ str(NFFT)[:2]+"k_"+"wave_" + str(wavelet) + ".pdf", bbox_inches="tight")    
 plt.show()
 
 sat = [2,3, 1, 5, 4]
@@ -604,7 +642,7 @@ if testnr == 4:
     barlist[2].set_color('g')
     barlist[3].set_color('r')
     barlist[4].set_color('purple')
-    plt.xlim(1,5)
+    plt.xlim()
     plt.xticks(mse_temp[0], ['Sat 1','Sat 2','Sat 3','Sat 4','Sat 5'], rotation=20)
     plt.savefig("test4/MSE.pdf")
 #plt.yscale('log')
