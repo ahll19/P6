@@ -64,7 +64,7 @@ plt.xticks(x + 0.25, xlabels)
 plt.ylabel("log(MSE)")
 ax.set_yscale('log')
 plt.tight_layout()
-plt.savefig("tests/histograms/test1.pdf")
+plt.savefig("tests/histograms/test2.pdf")
 plt.show()
 
 # %% histogram 3
@@ -91,7 +91,7 @@ for i in range(len(data[0])):
     b = ax.bar(x + i * dimw, y, dimw, bottom=1 * 10 ** 5, label="Sat " + str(i + 1))
 
 plt.legend(bbox_to_anchor=(1.04, 0.8), loc="upper left", borderaxespad=0, fontsize=14)
-plt.xticks(x + 0.25, xlabels, rotation=45)
+plt.xticks(x + 0.25, xlabels, rotation=20)
 plt.ylabel("log(MSE)")
 ax.set_yscale('log')
 plt.tight_layout()
@@ -122,7 +122,7 @@ for i in range(len(data[0])):
     b = ax.bar(x + i * dimw, y, dimw, bottom=1 * 10 ** 5, label="Sat " + str(i + 1))
 
 plt.legend(bbox_to_anchor=(1.04, 0.8), loc="upper left", borderaxespad=0, fontsize=14)
-plt.xticks(x + 0.25, xlabels, rotation=45)
+plt.xticks(x + 0.25, xlabels, rotation=20)
 plt.ylabel("log(MSE)")
 ax.set_yscale('log')
 plt.tight_layout()
